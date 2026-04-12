@@ -7,12 +7,9 @@ use std::path::Path;
 /// Formats a digest map as a compact JSON object with sorted keys.
 /// Example: `{"md5":"900150...","sha256":"ba7816..."}`
 pub fn format_as_json_object(digests: &BTreeMap<String, String>) -> String {
-    let obj: serde_json::Map<String, serde_json::Value> = digests
-        .iter()
-        .map(|(k, v)| (k.clone(), serde_json::Value::String(v.clone())))
-        .collect();
-    serde_json::to_string(&serde_json::Value::Object(obj))
-        .expect("BTreeMap<String, String> always serializes")
+    // Serialize BTreeMap directly so sorted key order is structurally guaranteed
+    // by the BTreeMap type, not by an implicit serde_json feature flag.
+    serde_json::to_string(digests).expect("BTreeMap<String, String> always serializes")
 }
 
 /// Formats a digest map as `algo: hex\n` lines, sorted by algorithm name.
@@ -31,13 +28,13 @@ pub fn format_as_file_json(files: &[(&str, &BTreeMap<String, String>)]) -> Strin
                 .file_name()
                 .and_then(|n| n.to_str())
                 .unwrap_or(path);
-            let hashes: serde_json::Map<String, serde_json::Value> = digests
-                .iter()
-                .map(|(k, v)| (k.clone(), serde_json::Value::String(v.clone())))
-                .collect();
+            // Serialize BTreeMap directly so hash key order is structurally
+            // guaranteed, not dependent on a serde_json feature flag.
+            let hashes =
+                serde_json::to_value(digests).expect("BTreeMap<String, String> always serializes");
             // Fields in alphabetical order: Hashes, Name, Path
             let mut obj = serde_json::Map::new();
-            obj.insert("Hashes".to_string(), serde_json::Value::Object(hashes));
+            obj.insert("Hashes".to_string(), hashes);
             obj.insert(
                 "Name".to_string(),
                 serde_json::Value::String(name.to_string()),
