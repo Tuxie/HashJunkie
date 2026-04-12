@@ -20,6 +20,7 @@ export class HashJunkie extends TransformStream<Uint8Array, Uint8Array> {
       rejectDigests = reject;
     });
 
+    // Load before super() so backend is captured in the transformer callbacks' closure.
     const backend = loadBackend(algs);
 
     super({
@@ -29,6 +30,9 @@ export class HashJunkie extends TransformStream<Uint8Array, Uint8Array> {
       },
       flush(): void {
         // Called only on clean close — resolve with final digests.
+        // Note: if finalize() threw, TransformStream would error the readable side,
+        // but digests would hang. finalize() is infallible (pure state computation),
+        // so this is an accepted known limitation.
         resolveDigests(backend.finalize());
       },
     });
@@ -39,8 +43,12 @@ export class HashJunkie extends TransformStream<Uint8Array, Uint8Array> {
     // writable.closed is not implemented in Bun, so we patch the abort method instead.
     // flush() is not called on abort, so this is the only hook available.
     const origAbort = this.writable.abort.bind(this.writable);
-    this.writable.abort = (reason?: unknown): Promise<void> => {
-      rejectDigests(reason);
+    let digestsRejected = false;
+    this.writable.abort = async (reason?: unknown): Promise<void> => {
+      if (!digestsRejected) {
+        digestsRejected = true;
+        rejectDigests(reason);
+      }
       return origAbort(reason);
     };
   }

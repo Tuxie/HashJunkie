@@ -133,3 +133,16 @@ test("HashJunkie.digests rejects when the writable stream is aborted", async () 
   }
   expect(caught).toBe(abortError);
 });
+
+test("HashJunkie.digests rejects with undefined when writable is aborted with no reason", async () => {
+  const hj = new HashJunkie(["sha256"]);
+  await hj.writable.abort(); // no reason argument
+
+  let caught: unknown = "NOT_SET";
+  try {
+    await hj.digests;
+  } catch (e) {
+    caught = e;
+  }
+  expect(caught).toBeUndefined();
+});
