@@ -11,7 +11,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.0",
-    "bun-types": "latest"
+    "@types/bun": "latest"
   },
   "optionalDependencies": {
     "@hashjunkie/linux-x64-gnu": "workspace:*",

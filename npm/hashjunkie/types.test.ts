@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import type { Algorithm } from "./types";
 import { ALGORITHMS, parseAlgorithms } from "./types";
 
 test("ALGORITHMS contains exactly 13 algorithms", () => {
@@ -6,7 +7,7 @@ test("ALGORITHMS contains exactly 13 algorithms", () => {
 });
 
 test("ALGORITHMS includes all required algorithm names", () => {
-  const required = [
+  const required: Algorithm[] = [
     "blake3",
     "crc32",
     "dropbox",
