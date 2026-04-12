@@ -5,6 +5,7 @@ use args::{Args, Format};
 use clap::Parser;
 use hashjunkie_core::{Algorithm, MultiHasher};
 use std::collections::BTreeMap;
+use std::fs::File;
 use std::io::{self, Read};
 use std::process;
 
@@ -49,9 +50,37 @@ fn run_stdin(algorithms: &[Algorithm], format: &Format) -> i32 {
     }
 }
 
-fn run_files(_algorithms: &[Algorithm], _files: &[String], _format: &Format) -> i32 {
-    // implemented in Task 5
-    0
+fn run_files(algorithms: &[Algorithm], files: &[String], format: &Format) -> i32 {
+    let mut results: Vec<(String, BTreeMap<String, String>)> = Vec::new();
+    let mut exit_code = 0;
+
+    for path in files {
+        match File::open(path) {
+            Ok(mut f) => match hash_reader(&mut f, algorithms) {
+                Ok(digests) => results.push((path.clone(), digests)),
+                Err(e) => {
+                    eprintln!("{path}: {e}");
+                    exit_code = 1;
+                }
+            },
+            Err(e) => {
+                eprintln!("{path}: {e}");
+                exit_code = 1;
+            }
+        }
+    }
+
+    if !results.is_empty() {
+        let pairs: Vec<(&str, &BTreeMap<String, String>)> =
+            results.iter().map(|(p, d)| (p.as_str(), d)).collect();
+        let out = match format {
+            Format::Json => output::format_as_file_json(&pairs),
+            Format::Hex => output::format_as_file_hex(&pairs),
+        };
+        println!("{}", out.trim_end_matches('\n'));
+    }
+
+    exit_code
 }
 
 fn main() {
