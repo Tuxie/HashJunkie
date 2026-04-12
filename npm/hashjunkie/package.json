@@ -10,7 +10,8 @@
     "test:coverage": "bun test --coverage"
   },
   "devDependencies": {
-    "@biomejs/biome": "^1.9.0"
+    "@biomejs/biome": "^1.9.0",
+    "bun-types": "latest"
   },
   "optionalDependencies": {
     "@hashjunkie/linux-x64-gnu": "workspace:*",
