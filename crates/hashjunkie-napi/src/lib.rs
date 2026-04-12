@@ -39,7 +39,8 @@ mod tests {
 
     #[test]
     fn parse_algorithms_subset_returns_correct_variants() {
-        let algs = parse_algorithms(Some(vec!["sha256".to_string(), "blake3".to_string()])).unwrap();
+        let algs =
+            parse_algorithms(Some(vec!["sha256".to_string(), "blake3".to_string()])).unwrap();
         assert_eq!(algs.len(), 2);
         assert!(algs.contains(&Algorithm::Sha256));
         assert!(algs.contains(&Algorithm::Blake3));
