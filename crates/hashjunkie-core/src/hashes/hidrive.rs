@@ -32,8 +32,8 @@ const ZERO_SUM: Sum = [0u8; SHA1_SIZE];
 /// One aggregation level: collects up to [`SUMS_PER_LEVEL`] checksums.
 ///
 /// Each incoming checksum is position-embedded (the current index byte is
-/// appended to the running SHA-1 state) before being XOR-accumulated into
-/// the level's running total.
+/// appended to the running SHA-1 state) before being arithmetically accumulated
+/// into the level's running total.
 #[derive(Clone)]
 struct Level {
     /// Accumulated (arithmetic-add-with-overflow) checksum of this level.
@@ -42,10 +42,6 @@ struct Level {
     sum_count: usize,
     /// SHA-1 hasher for the current child.
     hasher: Sha1,
-    /// Bytes written into `hasher` so far.
-    bytes_in_hasher: usize,
-    /// Whether `hasher` has seen only null bytes.
-    only_null_bytes: bool,
 }
 
 impl Level {
@@ -54,8 +50,6 @@ impl Level {
             checksum: ZERO_SUM,
             sum_count: 0,
             hasher: Sha1::new(),
-            bytes_in_hasher: 0,
-            only_null_bytes: true,
         }
     }
 
@@ -79,23 +73,29 @@ impl Level {
     /// state before the digest is taken, matching the reference implementation.
     fn write_child(&mut self, sha1sum: &Sum) {
         debug_assert!(!self.is_full());
-        // Feed the child sum into the per-child hasher.
-        self.hasher.update(sha1sum);
-        self.bytes_in_hasher += SHA1_SIZE;
         // Check if the child sum is all zeros (null).
         let only_null = *sha1sum == ZERO_SUM;
-        self.only_null_bytes = self.only_null_bytes && only_null;
 
-        if !self.only_null_bytes {
-            // Append position byte (matches hidrivehash.go's `l.hasher.Write([]byte{byte(l.sumCount)})`).
+        if !only_null {
+            // Feed the child sum then the position byte into the hasher, then
+            // accumulate. Matches hidrivehash.go:
+            //   l.hasher.Write(sha1sum)
+            //   l.hasher.Write([]byte{byte(l.sumCount)})
+            //   l.checksum = add(l.checksum, l.hasher.Sum(nil))
+            //   l.hasher.Reset()
+            self.hasher.update(sha1sum);
             let pos_byte = [self.sum_count as u8];
             self.hasher.update(pos_byte);
             let digest: Sum = self.hasher.finalize_reset().into();
             self.accumulate(&digest);
+        } else {
+            // Null child: do not accumulate (zero-sum contribution is identity
+            // for the arithmetic-add scheme), but always reset the hasher so
+            // the next child starts from a clean state.
+            self.hasher = Sha1::new();
         }
 
         self.sum_count += 1;
-        self.only_null_bytes = true; // reset for next child
     }
 
     /// Return the accumulated level checksum.
@@ -107,8 +107,6 @@ impl Level {
         self.checksum = ZERO_SUM;
         self.sum_count = 0;
         self.hasher = Sha1::new();
-        self.bytes_in_hasher = 0;
-        self.only_null_bytes = true;
     }
 }
 
@@ -228,11 +226,12 @@ impl Hasher for HidriveHasher {
             }
         }
 
-        let final_level = self.levels.last().expect("at least one level after flush");
-        let checksum = if final_level.sum_count > 1 {
-            final_level.sum()
-        } else {
-            self.last_sum_written
+        // At this point `levels` is non-empty: the early-return above handles
+        // the empty-file case, and `push_block_sum` always ensures at least one
+        // level exists.  We express this structurally via `unwrap_or`.
+        let checksum = match self.levels.last() {
+            Some(final_level) if final_level.sum_count > 1 => final_level.sum(),
+            _ => self.last_sum_written,
         };
 
         hex::encode(checksum)
@@ -321,5 +320,50 @@ mod tests {
         let data = vec![0xFFu8; BLOCK_SIZE];
         let expected = hex::encode(Sha1::digest(&data));
         assert_eq!(hash(&data), expected);
+    }
+
+    // Regression: a null block followed by a non-null block must produce the
+    // correct hash. Before the fix the SHA-1 hasher was never reset after a
+    // null child, causing subsequent blocks to be hashed with dirty state
+    // (ZERO_SUM prepended to the actual block sum).
+    //
+    // Correct derivation for [null_block, data_block] where data_block = [0x42; 4096]:
+    //   D = SHA1([0x42; 4096])
+    //   Level-0: null child at index 0 → skip accumulation, reset hasher
+    //   Level-0: non-null child D at index 1 → SHA1(D || [0x01]) = Y, accumulate Y
+    //   Final: sum_count=2 > 1, return checksum = Y
+    //   Y = SHA1(D || [0x01]) = "9978171f8fa1ebc567bdebc801d46fb6f90b760f"
+    #[test]
+    fn null_block_followed_by_data_block() {
+        // A null block (4096 zero bytes) followed by a non-null block.
+        let null_block = vec![0u8; BLOCK_SIZE];
+        let data_block = vec![0x42u8; BLOCK_SIZE];
+
+        let mut h1 = HidriveHasher::new();
+        h1.update(&null_block);
+        h1.update(&data_block);
+        let null_then_data = Box::new(h1).finalize_hex();
+
+        // Must match the analytically derived correct value.
+        // The buggy code produces "fa679d5fca7c71e4cd094b782fbee4bffee4d66e"
+        // because it prepends ZERO_SUM to the SHA-1 input.
+        assert_eq!(null_then_data, "9978171f8fa1ebc567bdebc801d46fb6f90b760f");
+
+        // Must differ from two non-null blocks of the same data.
+        let mut h2 = HidriveHasher::new();
+        h2.update(&data_block);
+        h2.update(&data_block);
+        let data_then_data = Box::new(h2).finalize_hex();
+        assert_ne!(null_then_data, data_then_data);
+
+        // Chunked delivery must produce the same result as a single update.
+        let mut combined = null_block.clone();
+        combined.extend_from_slice(&data_block);
+        let single = {
+            let mut h = HidriveHasher::new();
+            h.update(&combined);
+            Box::new(h).finalize_hex()
+        };
+        assert_eq!(null_then_data, single);
     }
 }
