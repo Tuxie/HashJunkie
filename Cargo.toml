@@ -9,8 +9,10 @@ crc32fast   = "1"
 digest      = "0.10"
 hex         = "0.4"
 md-5        = "0.10"
+# Pinned to v2; napi v3 has breaking API changes — evaluate before upgrading
 napi        = { version = "2", features = ["napi4"] }
 napi-derive = "2"
+napi-build  = "2"
 serde_json  = "1"
 sha1        = "0.10"
 sha2        = "0.10"

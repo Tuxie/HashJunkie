@@ -12,4 +12,4 @@ napi            = { workspace = true }
 napi-derive     = { workspace = true }
 
 [build-dependencies]
-napi-build = "2"
+napi-build = { workspace = true }
