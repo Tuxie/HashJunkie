@@ -91,7 +91,7 @@ mod tests {
     fn dropbox_abc() {
         use sha2::{Digest, Sha256};
         let inner = Sha256::digest(b"abc");
-        let expected = hex::encode(Sha256::digest(&inner));
+        let expected = hex::encode(Sha256::digest(inner));
         assert_eq!(hash(b"abc"), expected);
     }
 
@@ -151,7 +151,7 @@ mod tests {
         // Single block of same data would give SHA256(SHA256(combined))
         use sha2::{Digest, Sha256};
         let inner = Sha256::digest(&two_block_data);
-        let single_block_hash = hex::encode(Sha256::digest(&inner));
+        let single_block_hash = hex::encode(Sha256::digest(inner));
 
         // Two-block and single-block hashes must differ
         assert_ne!(two_block_hash, single_block_hash);
