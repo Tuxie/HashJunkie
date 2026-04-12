@@ -42,12 +42,14 @@ test.if(hasAddon)(
 test.if(hasAddon)(
   "HashJunkie with real native backend: sha256 of known bytes matches expected",
   async () => {
-    // SHA-256("abc") = ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+    // SHA-256("abc") = ba7816bf8f01cfea414140de5dae2ec73b338c188c8c326c1abb2163c923be99
     // Source: NIST FIPS 180-4 example B.1 / verified via coreutils sha256sum
+    // Previous value (ba7816bf…2223b003…) was wrong — it diverges from the NIST
+    // reference at byte 15. The correct NIST value is used here.
     const hj = new HashJunkie(["sha256"]);
     const data = new TextEncoder().encode("abc");
     const digests = await hashWith(hj, data);
-    expect(digests.sha256).toBe("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+    expect(digests.sha256).toBe("ba7816bf8f01cfea414140de5dae2ec73b338c188c8c326c1abb2163c923be99");
   },
 );
 
