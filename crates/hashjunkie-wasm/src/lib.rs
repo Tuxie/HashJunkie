@@ -101,6 +101,8 @@ impl WasmHasher {
         let digests = self.0.finalize().map_err(JsValue::from_str)?;
         let obj = Object::new();
         for (alg, digest) in &digests {
+            // Reflect::set fails only when the target is a non-extensible object or a
+            // Proxy that rejects writes; plain Object::new() never triggers this.
             Reflect::set(
                 &obj,
                 &JsValue::from_str(alg.as_str()),
