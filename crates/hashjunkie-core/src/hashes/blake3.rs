@@ -42,12 +42,18 @@ mod tests {
     // Official BLAKE3 test vectors from github.com/BLAKE3-team/BLAKE3
     #[test]
     fn blake3_empty() {
-        assert_eq!(hash(b""), "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262");
+        assert_eq!(
+            hash(b""),
+            "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262"
+        );
     }
 
     #[test]
     fn blake3_abc() {
-        assert_eq!(hash(b"abc"), "6437b3ac38465133ffb63b75273a8db548c558465d79db03fd359c6cd5bd9d85");
+        assert_eq!(
+            hash(b"abc"),
+            "6437b3ac38465133ffb63b75273a8db548c558465d79db03fd359c6cd5bd9d85"
+        );
     }
 
     #[test]
