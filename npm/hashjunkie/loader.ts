@@ -44,14 +44,19 @@ export function _tryRequire(path: string): any {
 export function _defaultLoadNative(): NativeAddon | null {
   /* c8 ignore start */
   if (process.platform === "linux" && process.arch === "x64")
+    // Trust assertion: if the .node file loads, napi-rs guarantees this shape
     return _tryRequire("./hashjunkie.linux-x64-gnu.node") as NativeAddon | null;
   if (process.platform === "linux" && process.arch === "arm64")
+    // Trust assertion: if the .node file loads, napi-rs guarantees this shape
     return _tryRequire("./hashjunkie.linux-arm64-gnu.node") as NativeAddon | null;
   if (process.platform === "darwin" && process.arch === "x64")
+    // Trust assertion: if the .node file loads, napi-rs guarantees this shape
     return _tryRequire("./hashjunkie.darwin-x64.node") as NativeAddon | null;
   if (process.platform === "darwin" && process.arch === "arm64")
+    // Trust assertion: if the .node file loads, napi-rs guarantees this shape
     return _tryRequire("./hashjunkie.darwin-arm64.node") as NativeAddon | null;
   if (process.platform === "win32" && process.arch === "x64")
+    // Trust assertion: if the .node file loads, napi-rs guarantees this shape
     return _tryRequire("./hashjunkie.win32-x64-msvc.node") as NativeAddon | null;
   return null;
   /* c8 ignore stop */
@@ -90,6 +95,7 @@ export function loadBackend(algorithms: Algorithm[]): Backend {
         inst.update(Buffer.from(data));
       },
       finalize(): Digests {
+        // Trust assertion: the Rust layer always returns exactly the 13 Algorithm keys
         return inst.finalize() as Digests;
       },
     };

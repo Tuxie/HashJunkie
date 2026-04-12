@@ -114,6 +114,27 @@ test("loadBackend converts Uint8Array to Buffer before passing to native update"
   expect(received).toBeInstanceOf(Buffer);
 });
 
+test("loadBackend forwards algorithm list to NativeHasher constructor", () => {
+  let receivedAlgorithms: string[] | null = null;
+  _setLoaders({
+    loadNative: () => ({
+      NativeHasher: class {
+        constructor(algorithms: string[]) {
+          receivedAlgorithms = algorithms;
+        }
+        update(_data: Buffer): void {}
+        finalize(): Record<string, string> {
+          return MOCK_DIGESTS;
+        }
+      },
+    }),
+    loadWasm: () => null,
+  });
+
+  loadBackend(["sha256", "blake3"]);
+  expect(receivedAlgorithms).toEqual(["sha256", "blake3"]);
+});
+
 // --- loadBackend WASM fallback ---
 
 test("loadBackend uses WASM backend when native returns null", () => {
@@ -133,6 +154,5 @@ test("loadBackend uses WASM backend when native returns null", () => {
 
 test("loadBackend throws Error when both loaders return null", () => {
   _setLoaders({ loadNative: () => null, loadWasm: () => null });
-  expect(() => loadBackend(["sha256"])).toThrow(Error);
   expect(() => loadBackend(["sha256"])).toThrow("no backend available");
 });
