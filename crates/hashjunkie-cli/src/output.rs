@@ -1,6 +1,3 @@
-// Functions are pub API wired into main in a later task; suppress dead_code until then.
-#![allow(dead_code)]
-
 use std::collections::BTreeMap;
 use std::path::Path;
 
@@ -20,6 +17,8 @@ pub fn format_as_hex_lines(digests: &BTreeMap<String, String>) -> String {
 
 /// Formats multiple (path, digests) pairs as a JSON array.
 /// Each element: `{"Hashes":{...},"Name":"filename","Path":"path/as/given"}`.
+// Used in Task 5 (file mode); suppress until then.
+#[allow(dead_code)]
 pub fn format_as_file_json(files: &[(&str, &BTreeMap<String, String>)]) -> String {
     let array: Vec<serde_json::Value> = files
         .iter()
@@ -51,6 +50,8 @@ pub fn format_as_file_json(files: &[(&str, &BTreeMap<String, String>)]) -> Strin
 
 /// Formats multiple (path, digests) pairs as grouped text blocks.
 /// Each block: file path, then `algo: hex\n` lines. Blocks separated by blank line.
+// Used in Task 5 (file mode); suppress until then.
+#[allow(dead_code)]
 pub fn format_as_file_hex(files: &[(&str, &BTreeMap<String, String>)]) -> String {
     files
         .iter()
