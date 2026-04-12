@@ -1,23 +1,30 @@
 [workspace]
-members = ["crates/hashjunkie-core", "crates/hashjunkie-cli", "crates/hashjunkie-napi"]
+members = [
+    "crates/hashjunkie-core",
+    "crates/hashjunkie-cli",
+    "crates/hashjunkie-napi",
+    "crates/hashjunkie-wasm",
+]
 resolver = "2"
 
 [workspace.dependencies]
-blake3      = "1"
-clap        = { version = "4", features = ["derive"] }
-crc32fast   = "1"
-digest      = "0.10"
-hex         = "0.4"
-md-5        = "0.10"
+blake3       = "1"
+clap         = { version = "4", features = ["derive"] }
+crc32fast    = "1"
+digest       = "0.10"
+hex          = "0.4"
+js-sys       = "0.3"
+md-5         = "0.10"
 # Pinned to v2; napi v3 has breaking API changes — evaluate before upgrading
-napi        = { version = "2", features = ["napi4"] }
-napi-derive = "2"
-napi-build  = "2"
-serde_json  = "1"
-sha1        = "0.10"
-sha2        = "0.10"
-whirlpool   = "0.10"
-xxhash-rust = { version = "0.8", features = ["xxh3"] }
+napi         = { version = "2", features = ["napi4"] }
+napi-build   = "2"
+napi-derive  = "2"
+serde_json   = "1"
+sha1         = "0.10"
+sha2         = "0.10"
+wasm-bindgen = "0.2"
+whirlpool    = "0.10"
+xxhash-rust  = { version = "0.8", features = ["xxh3"] }
 
 [profile.release]
 opt-level     = "z"
