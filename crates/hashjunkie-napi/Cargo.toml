@@ -1,0 +1,15 @@
+[package]
+name = "hashjunkie-napi"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+hashjunkie-core = { path = "../hashjunkie-core" }
+napi            = { workspace = true }
+napi-derive     = { workspace = true }
+
+[build-dependencies]
+napi-build = "2"
