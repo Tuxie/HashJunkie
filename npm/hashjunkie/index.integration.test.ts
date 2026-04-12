@@ -20,8 +20,10 @@ async function hashWith(hj: HashJunkie, data: Uint8Array): Promise<Record<string
         const { done } = await reader.read();
         if (done) break;
       }
+      reader.releaseLock();
     })(),
   ]);
+  // async functions automatically unwrap a returned Promise — no double-wrap.
   return hj.digests;
 }
 
