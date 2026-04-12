@@ -1,0 +1,23 @@
+{
+  "name": "hashjunkie",
+  "version": "0.1.0",
+  "description": "Multi-hash streaming library for Node.js and Bun — all hashes in one pass",
+  "main": "index.ts",
+  "scripts": {
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "test": "bun test",
+    "test:coverage": "bun test --coverage"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.0"
+  },
+  "optionalDependencies": {
+    "@hashjunkie/linux-x64-gnu": "workspace:*",
+    "@hashjunkie/linux-arm64-gnu": "workspace:*",
+    "@hashjunkie/darwin-x64": "workspace:*",
+    "@hashjunkie/darwin-arm64": "workspace:*",
+    "@hashjunkie/win32-x64-msvc": "workspace:*"
+  },
+  "license": "MIT"
+}

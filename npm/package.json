@@ -1,0 +1,12 @@
+{
+  "name": "hashjunkie-workspace",
+  "private": true,
+  "workspaces": [
+    "hashjunkie",
+    "hashjunkie-linux-x64-gnu",
+    "hashjunkie-linux-arm64-gnu",
+    "hashjunkie-darwin-x64",
+    "hashjunkie-darwin-arm64",
+    "hashjunkie-win32-x64-msvc"
+  ]
+}
