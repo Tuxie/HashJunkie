@@ -18,5 +18,11 @@ pub use xxhash::{Xxh128Hasher, Xxh3Hasher};
 mod dropbox;
 pub use dropbox::DropboxHasher;
 
+mod hidrive;
+pub use hidrive::HidriveHasher;
+
 mod quickxor;
 pub use quickxor::QuickXorHasher;
+
+mod mailru;
+pub use mailru::MailruHasher;
