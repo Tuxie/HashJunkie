@@ -1,0 +1,13 @@
+[package]
+name    = "hashjunkie-cli"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "hashjunkie"
+path = "src/main.rs"
+
+[dependencies]
+clap            = { workspace = true }
+hashjunkie-core = { path = "../hashjunkie-core" }
+serde_json      = { workspace = true }
