@@ -17,3 +17,6 @@ pub use xxhash::{Xxh128Hasher, Xxh3Hasher};
 
 mod dropbox;
 pub use dropbox::DropboxHasher;
+
+mod quickxor;
+pub use quickxor::QuickXorHasher;
