@@ -10,13 +10,58 @@ use hashjunkie_core::{Algorithm, MultiHasher};
 fn parse_algorithms(names: Option<Vec<String>>) -> napi::Result<Vec<Algorithm>> {
     match names {
         None => Ok(Algorithm::all().to_vec()),
-        Some(names) => names
-            .iter()
-            .map(|s| {
-                s.parse::<Algorithm>()
-                    .map_err(|e| napi::Error::from_reason(e.to_string()))
-            })
-            .collect(),
+        Some(names) => {
+            if names.is_empty() {
+                return Err(napi::Error::from_reason(
+                    "algorithms list must not be empty; omit the argument or pass null to use all algorithms",
+                ));
+            }
+            names
+                .iter()
+                .map(|s| {
+                    s.parse::<Algorithm>()
+                        .map_err(|e| napi::Error::from_reason(e.to_string()))
+                })
+                .collect()
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_algorithms_none_returns_all_13() {
+        let algs = parse_algorithms(None).unwrap();
+        assert_eq!(algs.len(), 13);
+    }
+
+    #[test]
+    fn parse_algorithms_subset_returns_correct_variants() {
+        let algs = parse_algorithms(Some(vec!["sha256".to_string(), "blake3".to_string()])).unwrap();
+        assert_eq!(algs.len(), 2);
+        assert!(algs.contains(&Algorithm::Sha256));
+        assert!(algs.contains(&Algorithm::Blake3));
+    }
+
+    #[test]
+    fn parse_algorithms_unknown_name_returns_err() {
+        let result = parse_algorithms(Some(vec!["bogus".to_string()]));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().reason.contains("unknown algorithm"));
+    }
+
+    // Regression: passing an empty Vec was silently producing a hasher that
+    // returns an empty digest map — almost certainly a caller mistake.
+    #[test]
+    fn parse_algorithms_empty_vec_returns_err() {
+        let result = parse_algorithms(Some(vec![]));
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .reason
+            .contains("algorithms list must not be empty"));
     }
 }
 
