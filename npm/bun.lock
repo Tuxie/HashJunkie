@@ -10,7 +10,7 @@
       "version": "0.1.0",
       "devDependencies": {
         "@biomejs/biome": "^1.9.0",
-        "@types/bun": "latest",
+        "bun-types": "^1.3.12",
       },
       "optionalDependencies": {
         "@hashjunkie/darwin-arm64": "workspace:*",
@@ -69,8 +69,6 @@
     "@hashjunkie/linux-x64-gnu": ["@hashjunkie/linux-x64-gnu@workspace:hashjunkie-linux-x64-gnu"],
 
     "@hashjunkie/win32-x64-msvc": ["@hashjunkie/win32-x64-msvc@workspace:hashjunkie-win32-x64-msvc"],
-
-    "@types/bun": ["@types/bun@1.3.12", "", { "dependencies": { "bun-types": "1.3.12" } }, "sha512-DBv81elK+/VSwXHDlnH3Qduw+KxkTIWi7TXkAeh24zpi5l0B2kUg9Ga3tb4nJaPcOFswflgi/yAvMVBPrxMB+A=="],
 
     "@types/node": ["@types/node@25.6.0", "", { "dependencies": { "undici-types": "~7.19.0" } }, "sha512-+qIYRKdNYJwY3vRCZMdJbPLJAtGjQBudzZzdzwQYkEPQd+PJGixUL5QfvCLDaULoLv+RhT3LDkwEfKaAkgSmNQ=="],
 
