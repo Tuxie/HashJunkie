@@ -1,0 +1,10 @@
+{
+  "name": "@hashjunkie/linux-x64-gnu",
+  "version": "0.1.0",
+  "description": "Prebuilt hashjunkie native addon for Linux x64 (glibc)",
+  "os": ["linux"],
+  "cpu": ["x64"],
+  "main": "hashjunkie.linux-x64-gnu.node",
+  "files": ["hashjunkie.linux-x64-gnu.node"],
+  "license": "MIT"
+}
