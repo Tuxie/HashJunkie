@@ -132,6 +132,16 @@ mod tests {
     }
 
     #[test]
+    fn default_equals_new() {
+        let mut h = RustCryptoHasher::<sha2::Sha256>::default();
+        h.update(b"abc");
+        assert_eq!(
+            Box::new(h).finalize_hex(),
+            hash_bytes::<sha2::Sha256>(b"abc")
+        );
+    }
+
+    #[test]
     fn update_in_chunks_matches_single_update() {
         let data = b"the quick brown fox jumps over the lazy dog";
         let mut h1 = RustCryptoHasher::<sha2::Sha256>::new();

@@ -85,6 +85,13 @@ mod tests {
     }
 
     #[test]
+    fn default_equals_new() {
+        let mut h = QuickXorHasher::default();
+        h.update(b"abc");
+        assert_eq!(Box::new(h).finalize_hex(), hash(b"abc"));
+    }
+
+    #[test]
     fn single_byte_a() {
         // Byte 'a' (0x61) at bit_pos 0: byte_idx=0, bit_offset=0
         // state[0] ^= 0x61 << 0 = 0x61, no second byte (bit_in_byte == 0)

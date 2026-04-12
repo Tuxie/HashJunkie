@@ -102,6 +102,30 @@ mod tests {
     }
 
     #[test]
+    fn xxh3_default_equals_new() {
+        let mut h = Xxh3Hasher::default();
+        h.update(b"abc");
+        let mut expected = Xxh3Hasher::new();
+        expected.update(b"abc");
+        assert_eq!(
+            Box::new(h).finalize_hex(),
+            Box::new(expected).finalize_hex()
+        );
+    }
+
+    #[test]
+    fn xxh128_default_equals_new() {
+        let mut h = Xxh128Hasher::default();
+        h.update(b"abc");
+        let mut expected = Xxh128Hasher::new();
+        expected.update(b"abc");
+        assert_eq!(
+            Box::new(h).finalize_hex(),
+            Box::new(expected).finalize_hex()
+        );
+    }
+
+    #[test]
     fn xxh3_output_is_16_hex_chars() {
         let mut h = Xxh3Hasher::new();
         h.update(b"test");

@@ -138,6 +138,13 @@ mod tests {
 
     // --- Streaming consistency ---
 
+    #[test]
+    fn default_equals_new() {
+        let mut h = MailruHasher::default();
+        h.update(b"abc");
+        assert_eq!(Box::new(h).finalize_hex(), hash(b"abc"));
+    }
+
     /// Chunked updates must produce the same result as a single update (small data).
     #[test]
     fn chunked_small_matches_single() {

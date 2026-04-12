@@ -210,15 +210,16 @@ impl Hasher for HidriveHasher {
         }
 
         // Aggregate non-final levels upward.
+        // The loop bound (0..num_levels-1) ensures `next = i+1` always indexes
+        // an existing level, so no push is needed here.
         let num_levels = self.levels.len();
         for i in 0..num_levels.saturating_sub(1) {
             if self.levels[i].sum_count >= 1 {
                 let s = self.levels[i].sum();
                 // Push the level's own accumulated sum into the next level.
+                // SAFETY: next = i+1 <= num_levels-1 < self.levels.len()
                 let next = i + 1;
-                if next >= self.levels.len() {
-                    self.levels.push(Level::new());
-                }
+                debug_assert!(next < self.levels.len());
                 // We need to record `s` as the last sum written and push it.
                 self.last_sum_written = s;
                 self.levels[next].write_child(&s);
@@ -320,6 +321,60 @@ mod tests {
         let data = vec![0xFFu8; BLOCK_SIZE];
         let expected = hex::encode(Sha1::digest(&data));
         assert_eq!(hash(&data), expected);
+    }
+
+    #[test]
+    fn default_equals_new() {
+        let mut h = HidriveHasher::default();
+        h.update(b"hello world");
+        let expected = hash(b"hello world");
+        assert_eq!(Box::new(h).finalize_hex(), expected);
+    }
+
+    // Exactly 256 blocks: level-0 fills and is rolled up into level-1, then
+    // reset (sum_count == 0).  At finalize_hex time the loop visits level-0 with
+    // sum_count == 0 and takes the no-op branch (line 226), exercising that path.
+    #[test]
+    fn exactly_256_blocks_level_reset_path() {
+        // 256 blocks of non-null data so every block contributes a real SHA-1 sum.
+        let data = vec![0x5Au8; 256 * BLOCK_SIZE];
+        let result = hash(&data);
+        // Must not be the zero-sum and must be stable across chunked delivery.
+        assert_ne!(result, "0000000000000000000000000000000000000000");
+        let mut h = HidriveHasher::new();
+        for chunk in data.chunks(BLOCK_SIZE) {
+            h.update(chunk);
+        }
+        assert_eq!(Box::new(h).finalize_hex(), result);
+    }
+
+    // 257 blocks (257 × 4 096 bytes) triggers the Level::reset() rollup path in
+    // push_block_sum — when level-0 fills its 256-child capacity, its accumulated
+    // sum is promoted to level-1 and level-0 is reset.  This also exercises the
+    // multi-level aggregation loop inside finalize_hex.
+    #[test]
+    fn level_rollup_with_257_blocks() {
+        // Each block is 4096 bytes of a distinct non-null pattern so every block
+        // contributes a real SHA-1 sum (not the null-block shortcut).
+        let mut data = Vec::with_capacity(257 * BLOCK_SIZE);
+        for i in 0u8..=255 {
+            data.extend(vec![i | 1; BLOCK_SIZE]); // OR with 1 ensures non-zero
+        }
+        // 257th block
+        data.extend(vec![0xABu8; BLOCK_SIZE]);
+
+        // Hash the whole thing in one call and in 4096-byte chunks — both must agree.
+        let single = hash(&data);
+
+        let mut h = HidriveHasher::new();
+        for chunk in data.chunks(BLOCK_SIZE) {
+            h.update(chunk);
+        }
+        let chunked = Box::new(h).finalize_hex();
+
+        assert_eq!(single, chunked);
+        // Sanity: non-empty, not the zero-sum.
+        assert_ne!(single, "0000000000000000000000000000000000000000");
     }
 
     // Regression: a null block followed by a non-null block must produce the

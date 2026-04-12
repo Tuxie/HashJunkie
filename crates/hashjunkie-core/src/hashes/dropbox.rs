@@ -107,6 +107,39 @@ mod tests {
     }
 
     #[test]
+    fn default_equals_new() {
+        let mut h = DropboxHasher::default();
+        h.update(b"abc");
+        assert_eq!(Box::new(h).finalize_hex(), hash(b"abc"));
+    }
+
+    // When data ends exactly on a 4 MiB boundary, current_block_len is 0 after
+    // update() and block_hashes is non-empty, so finalize_hex must skip the
+    // extra push (the else branch of `if current_block_len > 0 || block_hashes.is_empty()`).
+    #[test]
+    fn exact_block_boundary_skips_empty_partial_block() {
+        use sha2::{Digest, Sha256};
+        // Build two complete 4 MiB blocks — after update, current_block_len == 0
+        // and block_hashes has 2 entries.
+        let block1 = vec![0x11u8; BLOCK_SIZE];
+        let block2 = vec![0x22u8; BLOCK_SIZE];
+        let mut data = block1.clone();
+        data.extend_from_slice(&block2);
+
+        let result = hash(&data);
+
+        // Manual derivation: outer = SHA256(SHA256(block1) || SHA256(block2))
+        let h1: [u8; 32] = Sha256::digest(&block1).into();
+        let h2: [u8; 32] = Sha256::digest(&block2).into();
+        let mut outer = Sha256::new();
+        outer.update(h1);
+        outer.update(h2);
+        let expected = hex::encode(outer.finalize());
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
     fn block_boundary_produces_two_blocks() {
         // Exactly BLOCK_SIZE bytes in first block, then 1 more byte = two blocks
         let full_block = vec![0u8; BLOCK_SIZE];

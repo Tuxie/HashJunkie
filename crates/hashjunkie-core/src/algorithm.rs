@@ -125,4 +125,10 @@ mod tests {
             assert_eq!(alg.as_str(), alg.to_string());
         }
     }
+
+    #[test]
+    fn unknown_algorithm_display_message() {
+        let err = UnknownAlgorithm("nope".to_string());
+        assert_eq!(err.to_string(), "unknown algorithm: nope");
+    }
 }

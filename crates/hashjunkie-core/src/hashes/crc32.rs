@@ -56,6 +56,13 @@ mod tests {
     }
 
     #[test]
+    fn default_equals_new() {
+        let mut h = Crc32Hasher::default();
+        h.update(b"abc");
+        assert_eq!(Box::new(h).finalize_hex(), hash(b"abc"));
+    }
+
+    #[test]
     fn chunked_matches_single() {
         let data = b"the quick brown fox";
         let single = hash(data);
