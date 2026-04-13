@@ -23,14 +23,6 @@ cargo build \
   --target wasm32-unknown-unknown \
   --profile wasm-release
 
-# Optional: shrink with wasm-opt
-if command -v wasm-opt &>/dev/null; then
-  echo "==> Running wasm-opt -O3..."
-  wasm-opt -O3 "$WASM_RAW" -o "$WASM_RAW"
-else
-  echo "==> wasm-opt not found — skipping (install binaryen for smaller output)"
-fi
-
 # Generate JS glue with wasm-bindgen --target web
 TMPDIR_OUT=$(mktemp -d)
 trap 'rm -rf "$TMPDIR_OUT"' EXIT

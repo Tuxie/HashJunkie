@@ -1,0 +1,218 @@
+# HashJunkie
+
+Compute multiple file hashes in a single streaming pass — no re-reading, no extra copies, no external dependencies.
+
+HashJunkie ships as two tools that share the same Rust core:
+
+- **`@perw/hashjunkie`** — TypeScript/JavaScript library for Bun and Node.js
+- **`hashjunkie` CLI** — standalone binary for shell scripts and pipelines
+
+Both support the same 13 algorithms and produce identical output.
+
+---
+
+## JS library
+
+```sh
+bun add @perw/hashjunkie
+```
+
+```ts
+import { HashJunkie } from "@perw/hashjunkie";
+
+const hj = new HashJunkie(["sha256", "blake3", "md5"]);
+await Bun.file("video.mp4").stream().pipeThrough(hj).pipeTo(Bun.stdout.writable);
+
+const { sha256, blake3, md5 } = await hj.digests;
+```
+
+`HashJunkie` is a [`TransformStream`](https://developer.mozilla.org/en-US/docs/Web/API/TransformStream) — it passes every byte through unchanged while computing hashes in the background. Pipe a readable stream through it to any destination; the `digests` promise resolves once the stream closes.
+
+```ts
+// Hash a buffer without piping anywhere
+const hj = new HashJunkie(["sha256"]);
+const w = hj.writable.getWriter();
+await w.write(new TextEncoder().encode("hello"));
+await w.close();
+const { sha256 } = await hj.digests;  // lowercase hex string
+
+// No arguments = all 13 algorithms at once
+const hj2 = new HashJunkie();
+```
+
+**Full API documentation:** [npm/hashjunkie/README.md](npm/hashjunkie/README.md)
+
+---
+
+## CLI
+
+Download the latest binary from [Releases](https://github.com/Tuxie/HashJunkie/releases) and put it on your `PATH`.
+
+### Hash files
+
+```sh
+# All 13 algorithms, JSON output (default)
+hashjunkie file.bin
+
+# Specific algorithms
+hashjunkie -a sha256,md5 file.bin
+
+# Multiple files — output is a JSON array matching rclone lsjson --hash format
+hashjunkie -a sha256 *.bin
+
+# Plain text output
+hashjunkie --format hex file.bin
+```
+
+**JSON output** (single file):
+```json
+{"blake3":"...","crc32":"...","dropbox":"...","md5":"...","sha256":"..."}
+```
+
+**JSON output** (multiple files):
+```json
+[
+  {"Hashes":{"md5":"...","sha256":"..."},"Name":"a.bin","Path":"a.bin"},
+  {"Hashes":{"md5":"...","sha256":"..."},"Name":"b.bin","Path":"b.bin"}
+]
+```
+
+**Hex output**:
+```
+blake3: af1349b9f5f9a1a6a0...
+md5: 900150983cd24fb0d6...
+sha256: ba7816bf8f01cfea41...
+```
+
+### Hash stdin
+
+```sh
+cat file.bin | hashjunkie
+cat file.bin | hashjunkie -a sha256 --format hex
+```
+
+### Use in shell scripts
+
+```sh
+sha=$(hashjunkie -a sha256 --format hex file.bin | awk '{print $2}')
+echo "SHA-256: $sha"
+```
+
+---
+
+## Supported algorithms
+
+| Algorithm | Description | Output |
+|---|---|---|
+| `blake3` | BLAKE3 | 64 hex chars |
+| `crc32` | CRC-32 | 8 hex chars |
+| `dropbox` | Dropbox content hash — SHA-256 over 4 MiB blocks | 64 hex chars |
+| `hidrive` | STRATO HiDrive — SHA-1 block tree | 40 hex chars |
+| `mailru` | Mail.ru hash | 40 hex chars |
+| `md5` | MD5 | 32 hex chars |
+| `quickxor` | Microsoft QuickXorHash (OneDrive/SharePoint) | 40 hex chars |
+| `sha1` | SHA-1 | 40 hex chars |
+| `sha256` | SHA-256 | 64 hex chars |
+| `sha512` | SHA-512 | 128 hex chars |
+| `whirlpool` | Whirlpool | 128 hex chars |
+| `xxh128` | xxHash 128-bit | 32 hex chars |
+| `xxh3` | xxHash 64-bit | 16 hex chars |
+
+All digests are lowercase hex strings. The JSON field names match the algorithm names above and are always sorted alphabetically.
+
+The multi-block algorithms (`dropbox`, `hidrive`, `mailru`) produce output compatible with [rclone](https://rclone.org/)'s `lsjson --hash` command.
+
+---
+
+## How it works
+
+HashJunkie reads each byte of input exactly once. All active hashers run in parallel on each chunk — there is no second pass, no temporary file, and no duplication of data in memory.
+
+The Rust core is compiled into:
+
+- A **native `.node` addon** (via [napi-rs](https://napi.rs/)) for use in Bun and Node.js — zero-copy, statically linked, no `dlopen`
+- A **WebAssembly module** embedded inline in the JS package as a base64 string — automatic fallback when no native addon is present (browsers, Deno, Node SEA, etc.)
+- A **standalone CLI binary** — statically linked, no runtime required
+
+The JS library loads the native addon if available, otherwise falls back to WASM automatically. No configuration needed.
+
+---
+
+## Repository layout
+
+```
+hashjunkie/
+├── crates/
+│   ├── hashjunkie-core/        # Rust hash logic — all 13 algorithms
+│   ├── hashjunkie-napi/        # napi-rs wrapper → platform .node addons
+│   └── hashjunkie-cli/         # Standalone binary (clap, stdin + file modes)
+├── npm/
+│   ├── hashjunkie/             # @perw/hashjunkie — main JS/TS package
+│   └── hashjunkie-*/           # Per-platform prebuilt .node packages
+└── scripts/
+    └── build-wasm.sh           # Builds WASM blob and embeds it in wasm_blob.ts
+```
+
+`hashjunkie-core` is the shared heart — both the CLI and the JS addon depend on it. The core has no JS, napi-rs, or WASM dependencies.
+
+---
+
+## Development
+
+### Prerequisites
+
+- Rust stable + nightly (nightly is used only for branch coverage reports)
+- Bun ≥ 1.0
+- For WASM builds: `rustup target add wasm32-unknown-unknown` and `cargo install wasm-bindgen-cli --version 0.2.118`
+
+### Run all checks
+
+```sh
+# Rust
+cargo fmt --all
+cargo clippy --workspace --exclude hashjunkie-napi --all-targets -- -D warnings
+cargo test --workspace --exclude hashjunkie-napi
+
+# TypeScript
+cd npm/hashjunkie
+bun install
+bun test
+./node_modules/.bin/biome check .
+```
+
+### Coverage
+
+```sh
+# hashjunkie-core is held to 100% line + branch coverage
+cargo +nightly llvm-cov -p hashjunkie-core --branch --fail-under-lines 100
+
+# TypeScript
+cd npm/hashjunkie && bun test --coverage
+```
+
+### Rebuild the WASM blob
+
+Run this whenever `crates/hashjunkie-wasm/src/lib.rs` changes:
+
+```sh
+./scripts/build-wasm.sh
+```
+
+The script builds the WASM binary, runs `wasm-bindgen`, and writes the base64-encoded blob to `npm/hashjunkie/wasm_blob.ts`. Commit the generated files.
+
+### Commit style
+
+[Conventional Commits](https://www.conventionalcommits.org/) with plain English descriptions:
+
+```
+feat: add QuickXorHash algorithm
+fix: correct HiDrive block boundary for files < 128 KiB
+test: add regression test for dropbox empty-file edge case
+chore: update blake3 crate to 1.6.0
+```
+
+---
+
+## License
+
+MIT
