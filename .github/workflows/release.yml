@@ -25,7 +25,7 @@ jobs:
             pkg-dir: npm/hashjunkie-linux-arm64-gnu
             cross: true
           - target: x86_64-apple-darwin
-            runner: macos-13
+            runner: macos-latest
             node-file: hashjunkie.darwin-x64.node
             pkg-dir: npm/hashjunkie-darwin-x64
           - target: aarch64-apple-darwin
