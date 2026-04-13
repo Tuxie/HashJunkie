@@ -38,5 +38,8 @@ test("makeWasmBackend: WASM init is idempotent (calling twice is safe)", () => {
   makeWasmBackend(["md5"]);
   const backend = makeWasmBackend(["sha256"]);
   backend.update(new Uint8Array([0x61])); // 'a'
-  expect(backend.finalize().sha256).toHaveLength(64);
+  // SHA-256("a") — verified via sha256sum.
+  expect(backend.finalize().sha256).toBe(
+    "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb",
+  );
 });

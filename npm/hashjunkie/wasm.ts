@@ -24,7 +24,10 @@ export function makeWasmBackend(algorithms: Algorithm[]): Backend {
       // Trust assertion: WasmHasher.finalize() returns exactly the requested
       // algorithm keys mapping to lowercase hex strings — same guarantee as
       // the Rust MultiHasher it wraps.
-      return hasher.finalize() as Digests;
+      const result = hasher.finalize() as Digests;
+      // Free the WASM heap allocation — wasm-bindgen does not GC automatically.
+      hasher.free();
+      return result;
     },
   };
 }
