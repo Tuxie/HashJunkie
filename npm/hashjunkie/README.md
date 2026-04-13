@@ -3,7 +3,7 @@
 Multi-hash streaming library for Bun and Node.js. Computes any combination of 13 hash algorithms in a single pass — zero extra copies, no external system dependencies.
 
 ```ts
-import { HashJunkie } from "hashjunkie";
+import { HashJunkie } from "@perw/hashjunkie";
 
 const hj = new HashJunkie(["sha256", "blake3", "md5"]);
 await Bun.file("large-file.bin").stream().pipeThrough(hj).pipeTo(Bun.stdout.writable);
@@ -34,7 +34,7 @@ Pass no arguments to get all 13 hashes at once.
 ## Installation
 
 ```sh
-bun add hashjunkie
+bun add @perw/hashjunkie
 ```
 
 ## Usage
@@ -42,7 +42,7 @@ bun add hashjunkie
 `HashJunkie` is a [`TransformStream`](https://developer.mozilla.org/en-US/docs/Web/API/TransformStream) — pipe data through it, then await `digests`.
 
 ```ts
-import { HashJunkie } from "hashjunkie";
+import { HashJunkie } from "@perw/hashjunkie";
 
 // Hash a file while streaming it somewhere
 const hj = new HashJunkie(["sha256", "md5"]);
@@ -57,7 +57,7 @@ await writer.close();
 const digests = await hj2.digests;       // Record<Algorithm, string> — hex strings
 
 // Read the typed algorithm list
-import { ALGORITHMS } from "hashjunkie";
+import { ALGORITHMS } from "@perw/hashjunkie";
 console.log(ALGORITHMS); // readonly ["blake3", "crc32", ...]
 ```
 
@@ -74,6 +74,10 @@ The native path is **zero-copy**: each chunk is passed directly to the Rust hash
 On an M2 MacBook Pro, hashing a 1 GiB file with all 13 algorithms simultaneously runs at ~2.5 GiB/s with the native addon.
 
 ## Types
+
+```ts
+import type { Algorithm, Digests } from "@perw/hashjunkie";
+```
 
 ```ts
 type Algorithm =

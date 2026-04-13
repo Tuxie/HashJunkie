@@ -1,5 +1,5 @@
 {
-  "name": "@hashjunkie/darwin-arm64",
+  "name": "@perw/hashjunkie-darwin-arm64",
   "version": "0.1.0",
   "description": "Prebuilt hashjunkie native addon for macOS arm64 (Apple Silicon)",
   "os": ["darwin"],

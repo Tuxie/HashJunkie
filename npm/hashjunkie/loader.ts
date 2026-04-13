@@ -1,7 +1,7 @@
 import type { Algorithm, Backend, Digests } from "./types";
 import { makeWasmBackend } from "./wasm";
 
-/** Shape of the NativeHasher class exported by @hashjunkie/* platform packages. */
+/** Shape of the NativeHasher class exported by @perw/hashjunkie-* platform packages. */
 type NativeHasherInstance = {
   update(data: Buffer): void;
   finalize(): Record<string, string>;
@@ -12,15 +12,15 @@ type NativeAddon = {
 };
 
 /**
- * Maps (platform, arch) to the .node filename.
+ * Maps (platform, arch) to the npm platform package name.
  * Exported for unit testing all platform branches without modifying process globals.
  */
 export function _getPlatformPackage(platform: string, arch: string): string | null {
-  if (platform === "linux" && arch === "x64") return "hashjunkie.linux-x64-gnu.node";
-  if (platform === "linux" && arch === "arm64") return "hashjunkie.linux-arm64-gnu.node";
-  if (platform === "darwin" && arch === "x64") return "hashjunkie.darwin-x64.node";
-  if (platform === "darwin" && arch === "arm64") return "hashjunkie.darwin-arm64.node";
-  if (platform === "win32" && arch === "x64") return "hashjunkie.win32-x64-msvc.node";
+  if (platform === "linux" && arch === "x64") return "@perw/hashjunkie-linux-x64-gnu";
+  if (platform === "linux" && arch === "arm64") return "@perw/hashjunkie-linux-arm64-gnu";
+  if (platform === "darwin" && arch === "x64") return "@perw/hashjunkie-darwin-x64";
+  if (platform === "darwin" && arch === "arm64") return "@perw/hashjunkie-darwin-arm64";
+  if (platform === "win32" && arch === "x64") return "@perw/hashjunkie-win32-x64-msvc";
   return null;
 }
 
@@ -39,25 +39,21 @@ export function _tryRequire(path: string): any {
 
 /**
  * Loads the native addon for the current platform.
- * Static require() literals are required so bun build --compile can embed .node files.
- * Non-current-platform branches are annotated c8 ignore — each CI runner covers its own.
+ * Uses static npm package name literals so bun build --compile can embed the .node file.
+ * Non-current-platform branches are not coverable per runner — each CI runner covers its own.
  */
 export function _defaultLoadNative(): NativeAddon | null {
   if (process.platform === "linux" && process.arch === "x64")
-    // Trust assertion: if the .node file loads, napi-rs guarantees this shape
-    return _tryRequire("./hashjunkie.linux-x64-gnu.node") as NativeAddon | null;
+    // Trust assertion: if the package loads, napi-rs guarantees this shape
+    return _tryRequire("@perw/hashjunkie-linux-x64-gnu") as NativeAddon | null;
   if (process.platform === "linux" && process.arch === "arm64")
-    // Trust assertion: if the .node file loads, napi-rs guarantees this shape
-    return _tryRequire("./hashjunkie.linux-arm64-gnu.node") as NativeAddon | null;
+    return _tryRequire("@perw/hashjunkie-linux-arm64-gnu") as NativeAddon | null;
   if (process.platform === "darwin" && process.arch === "x64")
-    // Trust assertion: if the .node file loads, napi-rs guarantees this shape
-    return _tryRequire("./hashjunkie.darwin-x64.node") as NativeAddon | null;
+    return _tryRequire("@perw/hashjunkie-darwin-x64") as NativeAddon | null;
   if (process.platform === "darwin" && process.arch === "arm64")
-    // Trust assertion: if the .node file loads, napi-rs guarantees this shape
-    return _tryRequire("./hashjunkie.darwin-arm64.node") as NativeAddon | null;
+    return _tryRequire("@perw/hashjunkie-darwin-arm64") as NativeAddon | null;
   if (process.platform === "win32" && process.arch === "x64")
-    // Trust assertion: if the .node file loads, napi-rs guarantees this shape
-    return _tryRequire("./hashjunkie.win32-x64-msvc.node") as NativeAddon | null;
+    return _tryRequire("@perw/hashjunkie-win32-x64-msvc") as NativeAddon | null;
   return null;
 }
 

@@ -33,11 +33,11 @@ afterEach(() => {
 // --- _getPlatformPackage ---
 
 test("_getPlatformPackage maps all 5 supported platform/arch combos", () => {
-  expect(_getPlatformPackage("linux", "x64")).toBe("hashjunkie.linux-x64-gnu.node");
-  expect(_getPlatformPackage("linux", "arm64")).toBe("hashjunkie.linux-arm64-gnu.node");
-  expect(_getPlatformPackage("darwin", "x64")).toBe("hashjunkie.darwin-x64.node");
-  expect(_getPlatformPackage("darwin", "arm64")).toBe("hashjunkie.darwin-arm64.node");
-  expect(_getPlatformPackage("win32", "x64")).toBe("hashjunkie.win32-x64-msvc.node");
+  expect(_getPlatformPackage("linux", "x64")).toBe("@perw/hashjunkie-linux-x64-gnu");
+  expect(_getPlatformPackage("linux", "arm64")).toBe("@perw/hashjunkie-linux-arm64-gnu");
+  expect(_getPlatformPackage("darwin", "x64")).toBe("@perw/hashjunkie-darwin-x64");
+  expect(_getPlatformPackage("darwin", "arm64")).toBe("@perw/hashjunkie-darwin-arm64");
+  expect(_getPlatformPackage("win32", "x64")).toBe("@perw/hashjunkie-win32-x64-msvc");
 });
 
 test("_getPlatformPackage returns null for unsupported platform", () => {

@@ -1,5 +1,5 @@
 {
-  "name": "hashjunkie",
+  "name": "@perw/hashjunkie",
   "version": "0.1.0",
   "description": "Multi-hash streaming library for Node.js and Bun — all hashes in one pass",
   "main": "index.ts",
@@ -47,11 +47,11 @@
     "bun-types": "^1.3.12"
   },
   "optionalDependencies": {
-    "@hashjunkie/linux-x64-gnu": "workspace:*",
-    "@hashjunkie/linux-arm64-gnu": "workspace:*",
-    "@hashjunkie/darwin-x64": "workspace:*",
-    "@hashjunkie/darwin-arm64": "workspace:*",
-    "@hashjunkie/win32-x64-msvc": "workspace:*"
+    "@perw/hashjunkie-linux-x64-gnu": "workspace:*",
+    "@perw/hashjunkie-linux-arm64-gnu": "workspace:*",
+    "@perw/hashjunkie-darwin-x64": "workspace:*",
+    "@perw/hashjunkie-darwin-arm64": "workspace:*",
+    "@perw/hashjunkie-win32-x64-msvc": "workspace:*"
   },
   "license": "MIT"
 }

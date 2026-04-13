@@ -1,5 +1,5 @@
 {
-  "name": "@hashjunkie/win32-x64-msvc",
+  "name": "@perw/hashjunkie-win32-x64-msvc",
   "version": "0.1.0",
   "description": "Prebuilt hashjunkie native addon for Windows x64 (MSVC)",
   "os": ["win32"],

@@ -1,5 +1,5 @@
 {
-  "name": "@hashjunkie/linux-x64-gnu",
+  "name": "@perw/hashjunkie-linux-x64-gnu",
   "version": "0.1.0",
   "description": "Prebuilt hashjunkie native addon for Linux x64 (glibc)",
   "os": ["linux"],
