@@ -10,6 +10,7 @@
     }
   },
   "files": [
+    "README.md",
     "index.ts",
     "types.ts",
     "loader.ts",
@@ -21,6 +22,9 @@
     "tsconfig.json",
     "*.node"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "keywords": ["hash", "checksum", "streaming", "blake3", "sha256", "xxhash", "wasm", "napi"],
   "repository": {
     "type": "git",
