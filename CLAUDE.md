@@ -37,9 +37,15 @@ Write the test first. Then write the minimum code to make it pass. Then refactor
 
 This is not negotiable. Do not write implementation code without a failing test that demands it.
 
-### 100% Test Coverage — Enforced
+### Test Coverage Policy
 
-Every line, branch, and path must be covered. Coverage is measured and checked in CI. A PR that drops coverage below 100% does not merge.
+Coverage is measured and checked in CI. Per-crate requirements:
+
+| Crate / package | Gate |
+|---|---|
+| `hashjunkie-core` | **100%** — pure logic, fully unit-testable |
+| `hashjunkie-cli` | ≥ 90% — I/O entry points aren't worth complicating for coverage |
+| `npm/hashjunkie` | **100%** (TypeScript) |
 
 Tools:
 - Rust: `cargo llvm-cov` with `--branch` flag

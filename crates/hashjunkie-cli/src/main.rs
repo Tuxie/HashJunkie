@@ -33,8 +33,9 @@ fn hash_reader<R: Read>(
     Ok(sorted)
 }
 
-fn run_stdin(algorithms: &[Algorithm], format: &Format) -> i32 {
-    match hash_reader(&mut io::stdin(), algorithms) {
+/// Hash any `Read` source and print the result. Extracted from `run_stdin` for testability.
+fn run_reader<R: Read>(reader: &mut R, algorithms: &[Algorithm], format: &Format) -> i32 {
+    match hash_reader(reader, algorithms) {
         Ok(digests) => {
             let out = match format {
                 Format::Json => output::format_as_json_object(&digests),
@@ -48,6 +49,10 @@ fn run_stdin(algorithms: &[Algorithm], format: &Format) -> i32 {
             1
         }
     }
+}
+
+fn run_stdin(algorithms: &[Algorithm], format: &Format) -> i32 {
+    run_reader(&mut io::stdin(), algorithms, format)
 }
 
 fn run_files(algorithms: &[Algorithm], files: &[String], format: &Format) -> i32 {
@@ -101,4 +106,32 @@ fn main() {
     };
 
     process::exit(code);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A `Read` impl that always returns an IO error — exercises the error branch
+    /// of `hash_reader` and `run_reader` without requiring real I/O failures.
+    struct ErrorReader;
+    impl io::Read for ErrorReader {
+        fn read(&mut self, _buf: &mut [u8]) -> io::Result<usize> {
+            Err(io::Error::other("injected read error"))
+        }
+    }
+
+    #[test]
+    fn hash_reader_propagates_io_error() {
+        let algs = [Algorithm::Sha256];
+        let result = hash_reader(&mut ErrorReader, &algs);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn run_reader_returns_1_on_read_error() {
+        let algs = [Algorithm::Sha256];
+        let code = run_reader(&mut ErrorReader, &algs, &Format::Json);
+        assert_eq!(code, 1);
+    }
 }
