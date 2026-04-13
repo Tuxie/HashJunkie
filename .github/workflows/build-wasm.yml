@@ -25,20 +25,36 @@ jobs:
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
 
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install npm dependencies
+        working-directory: npm/hashjunkie
+        run: bun install
+
+      # Run the JS test suite against the committed WASM blob BEFORE overwriting
+      # it with a fresh build. This is the behavioural gate: what ships to npm
+      # has to work, regardless of whether a fresh build produces byte-identical
+      # output (wasm-bindgen / rustc updates routinely shift bytes without
+      # changing behaviour, and a byte-diff gate turns every toolchain bump into
+      # a spurious CI failure).
+      - name: Test committed WASM blob behaviour
+        working-directory: npm/hashjunkie
+        run: bun test
+
       - name: Install wasm-bindgen-cli
         run: cargo install wasm-bindgen-cli --version 0.2.118
 
-      - name: Build and embed WASM
+      - name: Build and embed WASM (smoke test — fresh build must succeed)
         run: ./scripts/build-wasm.sh
 
-      - name: Verify committed blob matches fresh build
-        run: |
-          git diff --exit-code npm/hashjunkie/wasm_blob.ts \
-            npm/hashjunkie/hashjunkie_wasm.js \
-            npm/hashjunkie/hashjunkie_wasm.d.ts || \
-          (echo "WASM generated files are out of date. Run ./scripts/build-wasm.sh and commit." && exit 1)
+      - name: Test freshly-built WASM blob behaviour
+        working-directory: npm/hashjunkie
+        run: bun test
 
-      - name: Upload WASM artifact
+      - name: Upload fresh WASM artifact
         uses: actions/upload-artifact@v4
         with:
           name: hashjunkie-wasm-blob
