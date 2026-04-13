@@ -20,10 +20,9 @@ jobs:
             node-file: hashjunkie.linux-x64-gnu.node
             pkg-dir: npm/hashjunkie-linux-x64-gnu
           - target: aarch64-unknown-linux-gnu
-            runner: ubuntu-latest
+            runner: ubuntu-24.04-arm
             node-file: hashjunkie.linux-arm64-gnu.node
             pkg-dir: npm/hashjunkie-linux-arm64-gnu
-            cross: true
           - target: x86_64-apple-darwin
             runner: macos-latest
             node-file: hashjunkie.darwin-x64.node
@@ -38,7 +37,7 @@ jobs:
             pkg-dir: npm/hashjunkie-win32-x64-msvc
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -48,24 +47,9 @@ jobs:
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
 
-      - name: Install cross (Linux arm64 only)
-        if: matrix.cross
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cross
-
-      - name: Build (native)
-        if: "!matrix.cross"
+      - name: Build
         run: >
           cargo build
-          -p hashjunkie-napi
-          --release
-          --target ${{ matrix.target }}
-
-      - name: Build (cross)
-        if: matrix.cross
-        run: >
-          cross build
           -p hashjunkie-napi
           --release
           --target ${{ matrix.target }}
@@ -91,7 +75,7 @@ jobs:
         shell: pwsh
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.node-file }}
           path: ${{ matrix.node-file }}
@@ -105,7 +89,7 @@ jobs:
       contents: read
       id-token: write  # for npm provenance
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
@@ -113,7 +97,7 @@ jobs:
           bun-version: latest
 
       - name: Download all native addon artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: "hashjunkie.*.node"
           merge-multiple: true

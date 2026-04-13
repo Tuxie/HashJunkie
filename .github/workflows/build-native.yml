@@ -22,11 +22,10 @@ jobs:
             runner: ubuntu-latest
             node-file: hashjunkie.linux-x64-gnu.node
           - target: aarch64-unknown-linux-gnu
-            runner: ubuntu-latest
+            runner: ubuntu-24.04-arm
             node-file: hashjunkie.linux-arm64-gnu.node
-            cross: true
           - target: x86_64-apple-darwin
-            runner: macos-13
+            runner: macos-latest
             node-file: hashjunkie.darwin-x64.node
           - target: aarch64-apple-darwin
             runner: macos-latest
@@ -36,7 +35,7 @@ jobs:
             node-file: hashjunkie.win32-x64-msvc.node
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -46,22 +45,9 @@ jobs:
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
 
-      - name: Install cross (Linux arm64 only)
-        if: matrix.cross
-        run: cargo install cross --git https://github.com/cross-rs/cross
-
-      - name: Build (native)
-        if: "!matrix.cross"
+      - name: Build
         run: >
           cargo build
-          -p hashjunkie-napi
-          --release
-          --target ${{ matrix.target }}
-
-      - name: Build (cross)
-        if: matrix.cross
-        run: >
-          cross build
           -p hashjunkie-napi
           --release
           --target ${{ matrix.target }}
@@ -87,7 +73,7 @@ jobs:
         shell: pwsh
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.node-file }}
           path: ${{ matrix.node-file }}
