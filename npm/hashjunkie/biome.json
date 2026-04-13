@@ -10,5 +10,8 @@
     "indentStyle": "space",
     "indentWidth": 2,
     "lineWidth": 100
+  },
+  "files": {
+    "ignore": ["hashjunkie_wasm.js", "hashjunkie_wasm.d.ts", "wasm_blob.ts"]
   }
 }

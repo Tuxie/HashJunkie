@@ -113,8 +113,14 @@ test("_defaultLoadNative unknown platform: falls through to null", () => {
 
 // --- _defaultLoadWasm ---
 
-test("_defaultLoadWasm returns null (WASM not yet embedded — Plan 5)", () => {
-  expect(_defaultLoadWasm()).toBeNull();
+test("_defaultLoadWasm returns a working WASM backend", () => {
+  const backend = _defaultLoadWasm(["sha256"]);
+  expect(backend).not.toBeNull();
+  if (backend === null) throw new Error("expected non-null backend");
+  backend.update(new TextEncoder().encode("abc"));
+  expect(backend.finalize().sha256).toBe(
+    "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+  );
 });
 
 // --- loadBackend with native addon ---

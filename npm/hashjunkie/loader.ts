@@ -1,4 +1,5 @@
 import type { Algorithm, Backend, Digests } from "./types";
+import { makeWasmBackend } from "./wasm";
 
 /** Shape of the NativeHasher class exported by @hashjunkie/* platform packages. */
 type NativeHasherInstance = {
@@ -60,14 +61,14 @@ export function _defaultLoadNative(): NativeAddon | null {
   return null;
 }
 
-/** Returns null until WASM embedding is wired up in Plan 5. */
-export function _defaultLoadWasm(): Backend | null {
-  return null;
+/** Returns a WASM backend for the given algorithms. Throws if WASM initialisation fails. */
+export function _defaultLoadWasm(algorithms: Algorithm[]): Backend | null {
+  return makeWasmBackend(algorithms);
 }
 
 type Loaders = {
   loadNative: () => NativeAddon | null;
-  loadWasm: () => Backend | null;
+  loadWasm: (algorithms: Algorithm[]) => Backend | null;
 };
 
 let _loaders: Loaders = {
@@ -99,10 +100,10 @@ export function loadBackend(algorithms: Algorithm[]): Backend {
     };
   }
 
-  const wasm = _loaders.loadWasm();
+  const wasm = _loaders.loadWasm(algorithms);
   if (wasm !== null) return wasm;
 
   throw new Error(
-    "hashjunkie: no backend available — native addon failed to load and WASM is not embedded",
+    "hashjunkie: no backend available — native addon failed to load and WASM initialisation failed",
   );
 }
