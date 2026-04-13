@@ -1,2 +1,5 @@
 .worktrees/
 *.node
+npm/node_modules
+npm/hashjunkie/node_modules
+target

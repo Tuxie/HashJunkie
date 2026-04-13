@@ -144,11 +144,47 @@ jobs:
             npm/hashjunkie/wasm_blob.ts
           retention-days: 7
 
+  should-release:
+    name: Check for release-relevant changes
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.check.outputs.release }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+
+      - name: Detect release-relevant changes
+        id: check
+        run: |
+          changed=$(git diff --name-only HEAD~1 HEAD)
+          echo "Changed files:"
+          echo "$changed"
+          # Paths that ship in a build artifact:
+          #   crates/*/src/          — Rust source for all crates
+          #   crates/hashjunkie-napi/build.rs — napi build script
+          #   npm/hashjunkie/*.ts/js  — TS/JS source (test files excluded below)
+          #   Cargo.toml / Cargo.lock — dependency changes affect compiled output
+          #   npm/*/package.json      — manifest changes affect published packages
+          release_files=$(echo "$changed" \
+            | grep -E '^(crates/[^/]+/src/|crates/hashjunkie-napi/build\.rs|Cargo\.(toml|lock)|npm/hashjunkie/[^/]+\.(ts|js)|npm/[^/]+/package\.json)' \
+            | grep -vE '\.test\.ts$')
+          if [ -n "$release_files" ]; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+            echo "Release-relevant changes detected:"
+            echo "$release_files"
+          else
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "No release-relevant changes — skipping build and publish."
+          fi
+
   build-native:
     name: Build ${{ matrix.target }}
-    # Only run on main pushes — PRs skip native builds to keep feedback fast.
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [rust, typescript, wasm-fresh-build]
+    # Only runs on main pushes that touch release-relevant source files.
+    # PRs, docs, tests, and CI-only changes skip the expensive native builds.
+    needs: [rust, typescript, wasm-fresh-build, should-release]
+    if: needs.should-release.outputs.release == 'true'
     strategy:
       fail-fast: false
       matrix:
