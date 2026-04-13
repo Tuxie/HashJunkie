@@ -21,16 +21,7 @@
     "tsconfig.json",
     "*.node"
   ],
-  "keywords": [
-    "hash",
-    "checksum",
-    "streaming",
-    "blake3",
-    "sha256",
-    "xxhash",
-    "wasm",
-    "napi"
-  ],
+  "keywords": ["hash", "checksum", "streaming", "blake3", "sha256", "xxhash", "wasm", "napi"],
   "repository": {
     "type": "git",
     "url": "https://github.com/Tuxie/HashJunkie.git",
