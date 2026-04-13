@@ -191,3 +191,15 @@ All of the following must pass before merge:
 - `biome check` (TS)
 - `bun test --coverage` at 100%
 - CLI output matches rclone fixture files
+
+### Verify workflows locally with `act` before pushing
+
+Before `git push` (and especially before tagging a release), run the GitHub Actions locally with [`act`](https://github.com/nektos/act) to catch CI failures without burning remote runner minutes or polluting history with "fix CI" commits:
+
+```sh
+act -l                              # list workflows and jobs
+act -W .github/workflows/ci.yml     # run the CI workflow
+act push                            # simulate a push event across all workflows
+```
+
+Only push once `act` reports every job green. If a workflow cannot be exercised under `act` (e.g. matrix runners that need macOS/Windows), note the gap explicitly and accept the risk.

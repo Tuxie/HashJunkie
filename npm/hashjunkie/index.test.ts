@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
-import { ALGORITHMS, HashJunkie } from "./index";
+import { ALGORITHMS, HashJunkie, hashBuffer, hashStream } from "./index";
 import { _setLoaders } from "./loader";
 import type { Digests } from "./types";
 
@@ -145,4 +145,67 @@ test("HashJunkie.digests rejects with undefined when writable is aborted with no
     caught = e;
   }
   expect(caught).toBeUndefined();
+});
+
+// --- regression: README "write-without-piping" pattern must not hang ---
+
+// The readable side is never drained by the caller; earlier versions configured
+// the default readable HWM of 0, which back-pressured the transformer on the
+// first enqueue and hung `writer.write()` forever. The fix is a high readable
+// HWM so enqueues never block when nobody is reading.
+test("HashJunkie supports write-close-digests without anyone reading readable", async () => {
+  const hj = new HashJunkie(["sha256"]);
+  const w = hj.writable.getWriter();
+  await w.write(new TextEncoder().encode("hello"));
+  await w.close();
+  expect(await hj.digests).toEqual(MOCK_DIGESTS);
+});
+
+test("HashJunkie handles many writes without a reader (no back-pressure deadlock)", async () => {
+  const hj = new HashJunkie(["sha256"]);
+  const w = hj.writable.getWriter();
+  for (let i = 0; i < 100; i++) await w.write(new Uint8Array([i]));
+  await w.close();
+  expect(await hj.digests).toEqual(MOCK_DIGESTS);
+});
+
+// --- hashBuffer helper ---
+
+test("hashBuffer resolves digests for a Uint8Array without stream boilerplate", async () => {
+  const digests = await hashBuffer(new TextEncoder().encode("hello"), ["sha256"]);
+  expect(digests).toEqual(MOCK_DIGESTS);
+});
+
+test("hashBuffer with no algorithm argument uses all algorithms", async () => {
+  const digests = await hashBuffer(new Uint8Array([1, 2, 3]));
+  expect(Object.keys(digests).sort()).toEqual([...ALGORITHMS].sort());
+});
+
+test("hashBuffer handles an empty input", async () => {
+  const digests = await hashBuffer(new Uint8Array(), ["sha256"]);
+  expect(digests).toEqual(MOCK_DIGESTS);
+});
+
+// --- hashStream helper ---
+
+test("hashStream drains a ReadableStream and resolves digests", async () => {
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new Uint8Array([1, 2]));
+      controller.enqueue(new Uint8Array([3, 4]));
+      controller.close();
+    },
+  });
+  const digests = await hashStream(stream, ["sha256"]);
+  expect(digests).toEqual(MOCK_DIGESTS);
+});
+
+test("hashStream with no algorithm argument uses all algorithms", async () => {
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.close();
+    },
+  });
+  const digests = await hashStream(stream);
+  expect(Object.keys(digests).sort()).toEqual([...ALGORITHMS].sort());
 });

@@ -39,22 +39,21 @@ bun add @perw/hashjunkie
 
 ## Usage
 
-`HashJunkie` is a [`TransformStream`](https://developer.mozilla.org/en-US/docs/Web/API/TransformStream) — pipe data through it, then await `digests`.
+Three entry points cover the common cases:
 
 ```ts
-import { HashJunkie } from "@perw/hashjunkie";
+import { HashJunkie, hashBuffer, hashStream } from "@perw/hashjunkie";
 
-// Hash a file while streaming it somewhere
+// 1. Pass-through: compute hashes while streaming bytes somewhere else.
 const hj = new HashJunkie(["sha256", "md5"]);
 await source.pipeThrough(hj).pipeTo(dest);
 const { sha256, md5 } = await hj.digests;
 
-// Hash a buffer directly
-const hj2 = new HashJunkie();            // all 13 algorithms
-const writer = hj2.writable.getWriter();
-await writer.write(new TextEncoder().encode("hello world"));
-await writer.close();
-const digests = await hj2.digests;       // Record<Algorithm, string> — hex strings
+// 2. In-memory buffer → digests, no plumbing.
+const digests = await hashBuffer(new TextEncoder().encode("hello world"));
+
+// 3. ReadableStream → digests; the stream is drained, the bytes are discarded.
+const fileDigests = await hashStream(Bun.file("big.bin").stream(), ["blake3", "sha256"]);
 
 // Read the typed algorithm list
 import { ALGORITHMS } from "@perw/hashjunkie";
@@ -91,6 +90,12 @@ class HashJunkie extends TransformStream<Uint8Array, Uint8Array> {
   constructor(algorithms?: Algorithm[]);
   readonly digests: Promise<Digests>;
 }
+
+function hashBuffer(data: Uint8Array, algorithms?: Algorithm[]): Promise<Digests>;
+function hashStream(
+  stream: ReadableStream<Uint8Array>,
+  algorithms?: Algorithm[],
+): Promise<Digests>;
 ```
 
 ## License
