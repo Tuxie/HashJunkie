@@ -78,7 +78,8 @@ jobs:
         # Parse bun's coverage table and fail if any file is below 100%.
         run: |
           bun test --coverage 2>&1 | tee /tmp/coverage.txt
-          if grep -E "[[:space:]]+[0-9]{1,2}\.[0-9]{2}[[:space:]]" /tmp/coverage.txt | grep -v "100\.00"; then
+          # The regex matches 1-2 digit percentages (0.00–99.99), which are inherently below 100.
+          if grep -E "[[:space:]]+[0-9]{1,2}\.[0-9]{2}[[:space:]]" /tmp/coverage.txt; then
             echo "Coverage below 100% in one or more files."
             exit 1
           fi
