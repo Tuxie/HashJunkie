@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  rust:
+    name: Rust checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy, llvm-tools-preview
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Clippy (warnings as errors)
+        # hashjunkie-napi uses napi-rs macros that generate code incompatible with
+        # cfg(test) — exclude it from the workspace clippy run.
+        run: >
+          cargo clippy
+          --workspace
+          --exclude hashjunkie-napi
+          --all-targets
+          -- -D warnings
+
+      - name: Tests
+        run: >
+          cargo test
+          --workspace
+          --exclude hashjunkie-napi
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+
+      - name: Coverage (100% gate)
+        run: >
+          cargo llvm-cov
+          --workspace
+          --exclude hashjunkie-napi
+          --branch
+          --fail-under-lines 100
+
+  typescript:
+    name: TypeScript checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: npm/hashjunkie
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Biome lint + format check
+        run: ./node_modules/.bin/biome ci .
+
+      - name: Tests with coverage (100% gate)
+        # Parse bun's coverage table and fail if any file is below 100%.
+        run: |
+          bun test --coverage 2>&1 | tee /tmp/coverage.txt
+          if grep -E "[[:space:]]+[0-9]{1,2}\.[0-9]{2}[[:space:]]" /tmp/coverage.txt | grep -v "100\.00"; then
+            echo "Coverage below 100% in one or more files."
+            exit 1
+          fi
