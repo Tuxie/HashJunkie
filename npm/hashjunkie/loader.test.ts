@@ -1,5 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
 import {
+  _defaultLoadNative,
   _defaultLoadWasm,
   _getPlatformPackage,
   _setLoaders,
@@ -57,6 +58,57 @@ test("_tryRequire returns the module when it exists", () => {
   // 'path' is a Node/Bun built-in that always resolves
   const result = _tryRequire("path");
   expect(result).not.toBeNull();
+});
+
+// --- _defaultLoadNative platform branches ---
+// Mocking process.platform/arch lets us exercise every branch on a single runner.
+// _tryRequire returns null for missing .node files, so non-current-platform branches
+// return null — the important thing is that each conditional executes.
+
+type ProcessPlatArch = { platform: string; arch: string };
+
+function withPlatform(platform: string, arch: string, fn: () => void): void {
+  const proc = process as unknown as ProcessPlatArch;
+  const orig = { platform: proc.platform, arch: proc.arch };
+  proc.platform = platform;
+  proc.arch = arch;
+  try {
+    fn();
+  } finally {
+    proc.platform = orig.platform;
+    proc.arch = orig.arch;
+  }
+}
+
+test("_defaultLoadNative linux/arm64: tries the arm64 addon path", () => {
+  withPlatform("linux", "arm64", () => {
+    // .node file does not exist on this runner → null, but the branch executes
+    expect(_defaultLoadNative()).toBeNull();
+  });
+});
+
+test("_defaultLoadNative darwin/x64: tries the darwin x64 addon path", () => {
+  withPlatform("darwin", "x64", () => {
+    expect(_defaultLoadNative()).toBeNull();
+  });
+});
+
+test("_defaultLoadNative darwin/arm64: tries the darwin arm64 addon path", () => {
+  withPlatform("darwin", "arm64", () => {
+    expect(_defaultLoadNative()).toBeNull();
+  });
+});
+
+test("_defaultLoadNative win32/x64: tries the win32 x64 addon path", () => {
+  withPlatform("win32", "x64", () => {
+    expect(_defaultLoadNative()).toBeNull();
+  });
+});
+
+test("_defaultLoadNative unknown platform: falls through to null", () => {
+  withPlatform("freebsd", "x64", () => {
+    expect(_defaultLoadNative()).toBeNull();
+  });
 });
 
 // --- _defaultLoadWasm ---

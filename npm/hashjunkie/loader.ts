@@ -42,7 +42,6 @@ export function _tryRequire(path: string): any {
  * Non-current-platform branches are annotated c8 ignore — each CI runner covers its own.
  */
 export function _defaultLoadNative(): NativeAddon | null {
-  /* c8 ignore start */
   if (process.platform === "linux" && process.arch === "x64")
     // Trust assertion: if the .node file loads, napi-rs guarantees this shape
     return _tryRequire("./hashjunkie.linux-x64-gnu.node") as NativeAddon | null;
@@ -59,7 +58,6 @@ export function _defaultLoadNative(): NativeAddon | null {
     // Trust assertion: if the .node file loads, napi-rs guarantees this shape
     return _tryRequire("./hashjunkie.win32-x64-msvc.node") as NativeAddon | null;
   return null;
-  /* c8 ignore stop */
 }
 
 /** Returns null until WASM embedding is wired up in Plan 5. */
