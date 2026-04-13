@@ -3,7 +3,45 @@
   "version": "0.1.0",
   "description": "Multi-hash streaming library for Node.js and Bun — all hashes in one pass",
   "main": "index.ts",
+  "exports": {
+    ".": {
+      "import": "./index.ts",
+      "require": "./index.ts"
+    }
+  },
+  "files": [
+    "index.ts",
+    "types.ts",
+    "loader.ts",
+    "wasm.ts",
+    "wasm_blob.ts",
+    "hashjunkie_wasm.js",
+    "hashjunkie_wasm.d.ts",
+    "globals.d.ts",
+    "tsconfig.json",
+    "*.node"
+  ],
+  "keywords": [
+    "hash",
+    "checksum",
+    "streaming",
+    "blake3",
+    "sha256",
+    "xxhash",
+    "wasm",
+    "napi"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Tuxie/HashJunkie.git",
+    "directory": "npm/hashjunkie"
+  },
+  "engines": {
+    "bun": ">=1.0.0",
+    "node": ">=18.0.0"
+  },
   "scripts": {
+    "build:wasm": "../../scripts/build-wasm.sh",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "test": "bun test",

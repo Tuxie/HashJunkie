@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # for npm provenance
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Download all native addon artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: "hashjunkie.*.node"
+          merge-multiple: true
+          path: /tmp/native-artifacts
+
+      - name: Place .node files into platform packages
+        run: |
+          cp /tmp/native-artifacts/hashjunkie.linux-x64-gnu.node   npm/hashjunkie-linux-x64-gnu/
+          cp /tmp/native-artifacts/hashjunkie.linux-arm64-gnu.node  npm/hashjunkie-linux-arm64-gnu/
+          cp /tmp/native-artifacts/hashjunkie.darwin-x64.node       npm/hashjunkie-darwin-x64/
+          cp /tmp/native-artifacts/hashjunkie.darwin-arm64.node     npm/hashjunkie-darwin-arm64/
+          cp /tmp/native-artifacts/hashjunkie.win32-x64-msvc.node   npm/hashjunkie-win32-x64-msvc/
+
+      - name: Configure npm token
+        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+
+      - name: Publish platform packages
+        run: |
+          for pkg in \
+            npm/hashjunkie-linux-x64-gnu \
+            npm/hashjunkie-linux-arm64-gnu \
+            npm/hashjunkie-darwin-x64 \
+            npm/hashjunkie-darwin-arm64 \
+            npm/hashjunkie-win32-x64-msvc; do
+            echo "Publishing $pkg..."
+            cd "$pkg"
+            npm publish --provenance --access public
+            cd -
+          done
+
+      - name: Publish main package
+        working-directory: npm/hashjunkie
+        run: npm publish --provenance --access public
