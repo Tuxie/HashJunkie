@@ -239,8 +239,7 @@ jobs:
       - name: Package CLI archive (Linux/macOS)
         if: runner.os != 'Windows'
         run: |
-          V="${GITHUB_REF_NAME#v}"
-          [ -n "$V" ] || V="0.0.0-dev"
+          V="0.0.0-dev"
           OUT="hashjunkie-cli-${V}-${{ matrix.cli-platform }}.tar.xz"
           mkdir -p /tmp/hashjunkie-cli
           cp target/${{ matrix.target }}/release/hashjunkie /tmp/hashjunkie-cli/hashjunkie
@@ -251,7 +250,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $version = if ($env:GITHUB_REF_NAME) { $env:GITHUB_REF_NAME -replace '^v','' } else { '0.0.0-dev' }
+          $version = '0.0.0-dev'
           $out = "hashjunkie-cli-$version-${{ matrix.cli-platform }}.zip"
           New-Item -ItemType Directory -Force -Path dist-cli | Out-Null
           Copy-Item "target\${{ matrix.target }}\release\hashjunkie.exe" "dist-cli\hashjunkie.exe"
