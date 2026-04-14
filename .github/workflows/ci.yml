@@ -232,8 +232,31 @@ jobs:
         run: >
           cargo build
           -p hashjunkie-napi
+          -p hashjunkie-cli
           --release
           --target ${{ matrix.target }}
+
+      - name: Package CLI archive (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          V="${GITHUB_REF_NAME#v}"
+          [ -n "$V" ] || V="0.0.0-dev"
+          OUT="hashjunkie-cli-${V}-${{ matrix.cli-platform }}.tar.xz"
+          mkdir -p /tmp/hashjunkie-cli
+          cp target/${{ matrix.target }}/release/hashjunkie /tmp/hashjunkie-cli/hashjunkie
+          tar -C /tmp/hashjunkie-cli -cJf "$OUT" hashjunkie
+          echo "CLI_ARCHIVE=$OUT" >> "$GITHUB_ENV"
+
+      - name: Package CLI archive (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $version = if ($env:GITHUB_REF_NAME) { $env:GITHUB_REF_NAME -replace '^v','' } else { '0.0.0-dev' }
+          $out = "hashjunkie-cli-$version-${{ matrix.cli-platform }}.zip"
+          New-Item -ItemType Directory -Force -Path dist-cli | Out-Null
+          Copy-Item "target\${{ matrix.target }}\release\hashjunkie.exe" "dist-cli\hashjunkie.exe"
+          Compress-Archive -Path "dist-cli\hashjunkie.exe" -DestinationPath $out -Force
+          "CLI_ARCHIVE=$out" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Rename .node artifact (Linux)
         if: runner.os == 'Linux'
@@ -260,6 +283,13 @@ jobs:
         with:
           name: ${{ matrix.node-file }}
           path: ${{ matrix.node-file }}
+          retention-days: 1
+
+      - name: Upload CLI archive artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: cli-${{ matrix.cli-platform }}
+          path: ${{ env.CLI_ARCHIVE }}
           retention-days: 1
 
   publish:
