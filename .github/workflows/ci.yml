@@ -144,19 +144,22 @@ jobs:
             npm/hashjunkie/wasm_blob.ts
           retention-days: 7
 
-  should-release:
-    name: Check for release-relevant changes
+  version:
+    name: Determine release version
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
-      release: ${{ steps.check.outputs.release }}
+      release: ${{ steps.release.outputs.release }}
+      latest: ${{ steps.version.outputs.latest }}
+      new: ${{ steps.version.outputs.new }}
+      skip: ${{ steps.version.outputs.skip }}
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 2
 
       - name: Detect release-relevant changes
-        id: check
+        id: release
         run: |
           changed=$(git diff --name-only HEAD~1 HEAD)
           echo "Changed files:"
@@ -181,12 +184,36 @@ jobs:
             echo "No release-relevant changes — skipping build and publish."
           fi
 
+      # Compute the concrete version once so CLI archive names, npm package
+      # stamping, git tags, and GitHub Release assets stay in lockstep.
+      - name: Determine next version
+        id: version
+        if: steps.release.outputs.release == 'true'
+        run: |
+          set -euo pipefail
+          LATEST=$(npm view @perw/hashjunkie version 2>/dev/null || echo "0.0.0")
+          case "$LATEST" in
+            0.2.*) AUTO=$(echo "$LATEST" | awk -F. '{print $1"."$2"."$3+1}') ;;
+            *)     AUTO=0.2.0 ;;
+          esac
+          MANUAL=$(jq -r .version npm/hashjunkie/package.json)
+          NEW=$(printf '%s\n%s\n' "$AUTO" "$MANUAL" | sort -V | tail -1)
+          if [ "$NEW" = "$LATEST" ]; then
+            SKIP=true
+          else
+            SKIP=false
+          fi
+          echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
+          echo "new=$NEW"       >> "$GITHUB_OUTPUT"
+          echo "skip=$SKIP"     >> "$GITHUB_OUTPUT"
+          echo "npm latest: $LATEST; package.json: $MANUAL; publishing: $NEW; skip: $SKIP"
+
   build-native:
     name: Build ${{ matrix.target }}
     # Only runs on main pushes that touch release-relevant source files.
     # PRs, docs, tests, and unrelated changes skip the expensive native builds.
-    needs: [rust, typescript, wasm-fresh-build, should-release]
-    if: needs.should-release.outputs.release == 'true'
+    needs: [rust, typescript, wasm-fresh-build, version]
+    if: needs.version.outputs.release == 'true' && needs.version.outputs.skip != 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -239,8 +266,7 @@ jobs:
       - name: Package CLI archive (Linux/macOS)
         if: runner.os != 'Windows'
         run: |
-          V="0.0.0-dev"
-          OUT="hashjunkie-cli-${V}-${{ matrix.cli-platform }}.tar.xz"
+          OUT="hashjunkie-cli-${{ needs.version.outputs.new }}-${{ matrix.cli-platform }}.tar.xz"
           mkdir -p /tmp/hashjunkie-cli
           cp target/${{ matrix.target }}/release/hashjunkie /tmp/hashjunkie-cli/hashjunkie
           tar -C /tmp/hashjunkie-cli -cJf "$OUT" hashjunkie
@@ -250,8 +276,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $version = '0.0.0-dev'
-          $out = "hashjunkie-cli-$version-${{ matrix.cli-platform }}.zip"
+          $out = "hashjunkie-cli-${{ needs.version.outputs.new }}-${{ matrix.cli-platform }}.zip"
           New-Item -ItemType Directory -Force -Path dist-cli | Out-Null
           Copy-Item "target\${{ matrix.target }}\release\hashjunkie.exe" "dist-cli\hashjunkie.exe"
           Compress-Archive -Path "dist-cli\hashjunkie.exe" -DestinationPath $out -Force
@@ -293,8 +318,8 @@ jobs:
 
   publish:
     name: Publish to npm
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [build-native]
+    needs: [version, build-native]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.version.outputs.release == 'true' && needs.version.outputs.skip != 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write   # needed to push the version tag back to the repo
@@ -316,41 +341,16 @@ jobs:
           merge-multiple: true
           path: /tmp/native-artifacts
 
-      # Decide which version to publish. Rules:
-      #   - If the latest on npm is 0.2.x, bump patch → 0.2.(x+1).
-      #   - Otherwise seed the line at 0.2.0.
-      #   - If package.json has been manually bumped higher (e.g. to 0.3.0),
-      #     respect that and use it instead. This is the "unless otherwise
-      #     specified" escape hatch.
-      - name: Determine next version
-        id: ver
-        run: |
-          set -e
-          LATEST=$(npm view @perw/hashjunkie version 2>/dev/null || echo "0.0.0")
-          case "$LATEST" in
-            0.2.*) AUTO=$(echo "$LATEST" | awk -F. '{print $1"."$2"."$3+1}') ;;
-            *)     AUTO=0.2.0 ;;
-          esac
-          MANUAL=$(jq -r .version npm/hashjunkie/package.json)
-          NEW=$(printf '%s\n%s\n' "$AUTO" "$MANUAL" | sort -V | tail -1)
-          echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
-          echo "new=$NEW"       >> "$GITHUB_OUTPUT"
-          echo "npm latest: $LATEST; package.json: $MANUAL; publishing: $NEW"
-
-      - name: Skip if already published
-        id: check
-        run: |
-          if [ "${{ steps.ver.outputs.new }}" = "${{ steps.ver.outputs.latest }}" ]; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "Version ${{ steps.ver.outputs.new }} is already on npm; nothing to publish."
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
+      - name: Download all CLI archive artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: "cli-*"
+          merge-multiple: true
+          path: /tmp/cli-artifacts
 
       - name: Stamp version into every package.json
-        if: steps.check.outputs.skip != 'true'
         run: |
-          V="${{ steps.ver.outputs.new }}"
+          V="${{ needs.version.outputs.new }}"
           for f in \
             npm/hashjunkie/package.json \
             npm/hashjunkie-linux-x64-gnu/package.json \
@@ -368,7 +368,6 @@ jobs:
             && mv /tmp/pkg.json npm/hashjunkie/package.json
 
       - name: Place .node files into platform packages
-        if: steps.check.outputs.skip != 'true'
         run: |
           cp /tmp/native-artifacts/hashjunkie.linux-x64-gnu.node    npm/hashjunkie-linux-x64-gnu/
           cp /tmp/native-artifacts/hashjunkie.linux-arm64-gnu.node  npm/hashjunkie-linux-arm64-gnu/
@@ -377,11 +376,9 @@ jobs:
           cp /tmp/native-artifacts/hashjunkie.win32-x64-msvc.node   npm/hashjunkie-win32-x64-msvc/
 
       - name: Configure npm token
-        if: steps.check.outputs.skip != 'true'
         run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
 
       - name: Publish platform packages
-        if: steps.check.outputs.skip != 'true'
         run: |
           set -e
           for pkg in \
@@ -395,14 +392,39 @@ jobs:
           done
 
       - name: Publish main package
-        if: steps.check.outputs.skip != 'true'
         working-directory: npm/hashjunkie
         run: npm publish --provenance --access public
 
       - name: Tag the release
-        if: steps.check.outputs.skip != 'true'
         run: |
+          set -euo pipefail
+          TAG="v${{ needs.version.outputs.new }}"
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag "v${{ steps.ver.outputs.new }}"
-          git push origin "v${{ steps.ver.outputs.new }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Git tag $TAG already exists."
+          else
+            git tag "$TAG"
+            git push origin "$TAG"
+          fi
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="v${{ needs.version.outputs.new }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "GitHub Release $TAG already exists."
+          else
+            gh release create "$TAG" --verify-tag --title "$TAG" --notes ""
+          fi
+
+      - name: Upload CLI archives to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release upload "v${{ needs.version.outputs.new }}" \
+            /tmp/cli-artifacts/hashjunkie-cli-${{ needs.version.outputs.new }}-* \
+            --clobber
