@@ -217,7 +217,7 @@ jobs:
     # Only runs on main pushes that touch release-relevant source files.
     # PRs, docs, tests, and unrelated changes skip the expensive native builds.
     needs: [rust, typescript, wasm-fresh-build, version]
-    if: needs.version.outputs.release == 'true' && needs.version.outputs.skip != 'true'
+    if: needs.version.outputs.release == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -323,7 +323,7 @@ jobs:
   publish:
     name: Publish to npm
     needs: [version, build-native]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.version.outputs.release == 'true' && needs.version.outputs.skip != 'true'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.version.outputs.release == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write   # needed to push the version tag back to the repo
@@ -339,6 +339,7 @@ jobs:
           bun-version: latest
 
       - name: Download all native addon artifacts
+        if: needs.version.outputs.skip != 'true'
         uses: actions/download-artifact@v8
         with:
           pattern: "hashjunkie.*.node"
@@ -353,6 +354,7 @@ jobs:
           path: /tmp/cli-artifacts
 
       - name: Stamp version into every package.json
+        if: needs.version.outputs.skip != 'true'
         run: |
           V="${{ needs.version.outputs.new }}"
           for f in \
@@ -372,6 +374,7 @@ jobs:
             && mv /tmp/pkg.json npm/hashjunkie/package.json
 
       - name: Place .node files into platform packages
+        if: needs.version.outputs.skip != 'true'
         run: |
           cp /tmp/native-artifacts/hashjunkie.linux-x64-gnu.node    npm/hashjunkie-linux-x64-gnu/
           cp /tmp/native-artifacts/hashjunkie.linux-arm64-gnu.node  npm/hashjunkie-linux-arm64-gnu/
@@ -380,9 +383,11 @@ jobs:
           cp /tmp/native-artifacts/hashjunkie.win32-x64-msvc.node   npm/hashjunkie-win32-x64-msvc/
 
       - name: Configure npm token
+        if: needs.version.outputs.skip != 'true'
         run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
 
       - name: Publish platform packages
+        if: needs.version.outputs.skip != 'true'
         run: |
           set -e
           for pkg in \
@@ -396,6 +401,7 @@ jobs:
           done
 
       - name: Publish main package
+        if: needs.version.outputs.skip != 'true'
         working-directory: npm/hashjunkie
         run: npm publish --provenance --access public
 
