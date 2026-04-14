@@ -5,6 +5,12 @@ on:
     branches: [main]
   pull_request:
 
+concurrency:
+  # Main pushes must run one-at-a-time so version discovery cannot race with a
+  # concurrent publish and reserve the same npm version twice.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
@@ -150,7 +156,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       release: ${{ steps.release.outputs.release }}
-      latest: ${{ steps.version.outputs.latest }}
       new: ${{ steps.version.outputs.new }}
       skip: ${{ steps.version.outputs.skip }}
     steps:
@@ -203,7 +208,6 @@ jobs:
           else
             SKIP=false
           fi
-          echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
           echo "new=$NEW"       >> "$GITHUB_OUTPUT"
           echo "skip=$SKIP"     >> "$GITHUB_OUTPUT"
           echo "npm latest: $LATEST; package.json: $MANUAL; publishing: $NEW; skip: $SKIP"
