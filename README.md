@@ -48,6 +48,14 @@ const hj2 = new HashJunkie();
 
 Download the latest binary from [Releases](https://github.com/Tuxie/HashJunkie/releases) and put it on your `PATH`.
 
+Release assets are published with these archive names:
+
+- `hashjunkie-cli-{version}-linux-x64-gnu.tar.xz`
+- `hashjunkie-cli-{version}-linux-arm64-gnu.tar.xz`
+- `hashjunkie-cli-{version}-darwin-x64.tar.xz`
+- `hashjunkie-cli-{version}-darwin-arm64.tar.xz`
+- `hashjunkie-cli-{version}-win32-x64-msvc.zip`
+
 ### Hash files
 
 ```sh
