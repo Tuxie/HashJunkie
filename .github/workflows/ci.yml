@@ -163,15 +163,14 @@ jobs:
           echo "$changed"
           # Paths that ship in a build artifact:
           #   crates/hashjunkie-cli/Cargo.toml  — CLI manifest changes affect release assets
-          #   crates/hashjunkie-cli/src/        — CLI source changes affect release assets
-          #   crates/*/src/          — Rust source for all crates
+          #   crates/*/src/          — Rust source for all crates, including CLI source
           #   crates/hashjunkie-napi/build.rs — napi build script
           #   npm/hashjunkie/*.ts/js  — TS/JS source (test files excluded below)
           #   Cargo.toml / Cargo.lock — dependency changes affect compiled output
           #   npm/*/package.json      — manifest changes affect published packages
           #   .github/workflows/ci.yml — release gating and packaging metadata
           release_files=$(echo "$changed" \
-            | grep -E '^(crates/hashjunkie-cli/Cargo\.toml|crates/hashjunkie-cli/src/|crates/[^/]+/src/|crates/hashjunkie-napi/build\.rs|Cargo\.(toml|lock)|npm/hashjunkie/[^/]+\.(ts|js)|npm/[^/]+/package\.json|\.github/workflows/ci\.yml)' \
+            | grep -E '^(crates/hashjunkie-cli/Cargo\.toml|crates/[^/]+/src/|crates/hashjunkie-napi/build\.rs|Cargo\.(toml|lock)|npm/hashjunkie/[^/]+\.(ts|js)|npm/[^/]+/package\.json|\.github/workflows/ci\.yml)' \
             | grep -vE '\.test\.ts$')
           if [ -n "$release_files" ]; then
             echo "release=true" >> "$GITHUB_OUTPUT"
@@ -185,7 +184,7 @@ jobs:
   build-native:
     name: Build ${{ matrix.target }}
     # Only runs on main pushes that touch release-relevant source files.
-    # PRs, docs, tests, and CI-only changes skip the expensive native builds.
+    # PRs, docs, tests, and unrelated changes skip the expensive native builds.
     needs: [rust, typescript, wasm-fresh-build, should-release]
     if: needs.should-release.outputs.release == 'true'
     strategy:
