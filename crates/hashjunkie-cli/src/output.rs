@@ -1,5 +1,12 @@
 use std::collections::BTreeMap;
-use std::path::Path;
+
+pub struct FileJsonEntry<'a> {
+    pub path: &'a str,
+    pub name: &'a str,
+    pub size: u64,
+    pub mod_time: String,
+    pub digests: &'a BTreeMap<String, String>,
+}
 
 /// Formats a digest map as a compact JSON object with sorted keys.
 /// Example: `{"md5":"900150...","sha256":"ba7816..."}`
@@ -15,35 +22,39 @@ pub fn format_as_hex_lines(digests: &BTreeMap<String, String>) -> String {
     digests.iter().map(|(k, v)| format!("{k}: {v}\n")).collect()
 }
 
-/// Formats multiple (path, digests) pairs as a JSON array.
-/// Each element: `{"Hashes":{...},"Name":"filename","Path":"path/as/given"}`.
-pub fn format_as_file_json(files: &[(&str, &BTreeMap<String, String>)]) -> String {
+fn file_entry_value(entry: &FileJsonEntry<'_>) -> serde_json::Value {
+    let hashes = serde_json::to_value(entry.digests).expect("BTreeMap<String, String> always serializes");
+    let mut obj = serde_json::Map::new();
+    obj.insert("Hashes".to_string(), hashes);
+    obj.insert(
+        "ModTime".to_string(),
+        serde_json::Value::String(entry.mod_time.clone()),
+    );
+    obj.insert(
+        "Name".to_string(),
+        serde_json::Value::String(entry.name.to_string()),
+    );
+    obj.insert(
+        "Path".to_string(),
+        serde_json::Value::String(entry.path.to_string()),
+    );
+    obj.insert("Size".to_string(), serde_json::Value::Number(entry.size.into()));
+    serde_json::Value::Object(obj)
+}
+
+/// Formats multiple file entries as a JSON array.
+/// Each element matches the `rclone lsjson --hash` object shape.
+pub fn format_as_file_json(files: &[FileJsonEntry<'_>]) -> String {
     let array: Vec<serde_json::Value> = files
         .iter()
-        .map(|(path, digests)| {
-            let name = Path::new(path)
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or(path);
-            // Serialize BTreeMap directly so hash key order is structurally
-            // guaranteed, not dependent on a serde_json feature flag.
-            let hashes =
-                serde_json::to_value(digests).expect("BTreeMap<String, String> always serializes");
-            // Fields in alphabetical order: Hashes, Name, Path
-            let mut obj = serde_json::Map::new();
-            obj.insert("Hashes".to_string(), hashes);
-            obj.insert(
-                "Name".to_string(),
-                serde_json::Value::String(name.to_string()),
-            );
-            obj.insert(
-                "Path".to_string(),
-                serde_json::Value::String((*path).to_string()),
-            );
-            serde_json::Value::Object(obj)
-        })
+        .map(file_entry_value)
         .collect();
     serde_json::to_string(&serde_json::Value::Array(array)).expect("file entries always serialize")
+}
+
+/// Formats stdin JSON output using the same metadata-bearing shape as file mode.
+pub fn format_as_stdin_json(entry: &FileJsonEntry<'_>) -> String {
+    serde_json::to_string(&file_entry_value(entry)).expect("stdin entry always serializes")
 }
 
 /// Formats multiple (path, digests) pairs as grouped text blocks.
@@ -94,17 +105,38 @@ mod tests {
     #[test]
     fn file_json_has_hashes_name_path_fields() {
         let d = sample();
-        let json = format_as_file_json(&[("dir/file1.bin", &d)]);
+        let json = format_as_file_json(&[FileJsonEntry {
+            path: "dir/file1.bin",
+            name: "file1.bin",
+            size: 3,
+            mod_time: "2026-04-13T08:26:13.274435233Z".to_string(),
+            digests: &d,
+        }]);
         assert_eq!(
             json,
-            r#"[{"Hashes":{"md5":"900150983cd24fb0d6963f7d28e17f72","sha256":"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"},"Name":"file1.bin","Path":"dir/file1.bin"}]"#
+            r#"[{"Hashes":{"md5":"900150983cd24fb0d6963f7d28e17f72","sha256":"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"},"ModTime":"2026-04-13T08:26:13.274435233Z","Name":"file1.bin","Path":"dir/file1.bin","Size":3}]"#
         );
     }
 
     #[test]
     fn file_json_two_files_produces_array_of_length_2() {
         let d = sample();
-        let json = format_as_file_json(&[("a.bin", &d), ("b.bin", &d)]);
+        let json = format_as_file_json(&[
+            FileJsonEntry {
+                path: "a.bin",
+                name: "a.bin",
+                size: 1,
+                mod_time: "2026-04-13T08:26:13Z".to_string(),
+                digests: &d,
+            },
+            FileJsonEntry {
+                path: "b.bin",
+                name: "b.bin",
+                size: 2,
+                mod_time: "2026-04-13T08:26:14Z".to_string(),
+                digests: &d,
+            },
+        ]);
         let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed.as_array().unwrap().len(), 2);
         assert_eq!(parsed[1]["Path"], "b.bin");
@@ -113,10 +145,33 @@ mod tests {
     #[test]
     fn file_json_name_is_last_path_segment() {
         let d = sample();
-        let json = format_as_file_json(&[("/deep/nested/thing.dat", &d)]);
+        let json = format_as_file_json(&[FileJsonEntry {
+            path: "/deep/nested/thing.dat",
+            name: "thing.dat",
+            size: 9,
+            mod_time: "2026-04-13T08:26:13Z".to_string(),
+            digests: &d,
+        }]);
         let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed[0]["Name"], "thing.dat");
         assert_eq!(parsed[0]["Path"], "/deep/nested/thing.dat");
+    }
+
+    #[test]
+    fn stdin_json_includes_metadata_fields() {
+        let d = sample();
+        let json = format_as_stdin_json(&FileJsonEntry {
+            path: "-",
+            name: "-",
+            size: 3,
+            mod_time: "2026-04-14T00:00:00Z".to_string(),
+            digests: &d,
+        });
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed["Path"], "-");
+        assert_eq!(parsed["Name"], "-");
+        assert_eq!(parsed["Size"], 3);
+        assert_eq!(parsed["ModTime"], "2026-04-14T00:00:00Z");
     }
 
     #[test]

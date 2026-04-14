@@ -80,9 +80,19 @@ fn stdin_with_two_algorithms_json_output_is_sorted() {
     let output = run_with_stdin(&["-a", "sha256,md5"], b"abc");
     assert!(output.status.success());
     let stdout = String::from_utf8(output.stdout).unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim()).unwrap();
+    assert_eq!(parsed["Path"], "-");
+    assert_eq!(parsed["Name"], "-");
+    assert_eq!(parsed["Size"], 3);
+    let mod_time = parsed["ModTime"].as_str().unwrap();
+    assert!(chrono::DateTime::parse_from_rfc3339(mod_time).is_ok());
     assert_eq!(
-        stdout.trim(),
-        r#"{"md5":"900150983cd24fb0d6963f7d28e17f72","sha256":"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"}"#
+        parsed["Hashes"]["md5"],
+        "900150983cd24fb0d6963f7d28e17f72"
+    );
+    assert_eq!(
+        parsed["Hashes"]["sha256"],
+        "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
     );
 }
 
@@ -145,6 +155,9 @@ fn file_mode_two_identical_args_produce_array_of_length_2() {
             entry["Hashes"]["sha256"],
             "785b0751fc2c53dc14a4ce3d800e69ef9ce1009eb327ccf458afe09c242c26c9"
         );
+        assert_eq!(entry["Size"], std::fs::metadata(FIXTURE).unwrap().len());
+        let mod_time = entry["ModTime"].as_str().unwrap();
+        assert!(chrono::DateTime::parse_from_rfc3339(mod_time).is_ok());
     }
 }
 
@@ -194,4 +207,22 @@ fn file_mode_one_good_one_bad_exits_one_stdout_has_good_result() {
         parsed[0]["Hashes"]["sha256"],
         "785b0751fc2c53dc14a4ce3d800e69ef9ce1009eb327ccf458afe09c242c26c9"
     );
+}
+
+#[test]
+fn stdin_hex_format_does_not_include_metadata_labels() {
+    let output = run_with_stdin(&["--format", "hex", "-a", "sha256"], b"abc");
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(!stdout.contains("ModTime"));
+    assert!(!stdout.contains("Size"));
+}
+
+#[test]
+fn file_mode_hex_format_does_not_include_metadata_labels() {
+    let output = bin().args(["--format", "hex", FIXTURE]).output().unwrap();
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(!stdout.contains("ModTime"));
+    assert!(!stdout.contains("Size"));
 }

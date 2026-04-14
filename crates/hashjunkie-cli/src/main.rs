@@ -3,11 +3,14 @@ mod output;
 
 use args::{Args, Format};
 use clap::Parser;
+use chrono::{SecondsFormat, Utc};
 use hashjunkie_core::{Algorithm, MultiHasher};
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::{self, Read};
+use std::path::Path;
 use std::process;
+use std::time::SystemTime;
 
 const CHUNK_SIZE: usize = 64 * 1024;
 
@@ -33,6 +36,39 @@ fn hash_reader<R: Read>(
     Ok(sorted)
 }
 
+struct CountingReader<R> {
+    inner: R,
+    bytes_read: u64,
+}
+
+impl<R> CountingReader<R> {
+    fn new(inner: R) -> Self {
+        Self {
+            inner,
+            bytes_read: 0,
+        }
+    }
+}
+
+impl<R: Read> Read for CountingReader<R> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        let n = self.inner.read(buf)?;
+        self.bytes_read += n as u64;
+        Ok(n)
+    }
+}
+
+fn format_system_time(time: SystemTime) -> String {
+    chrono::DateTime::<Utc>::from(time).to_rfc3339_opts(SecondsFormat::Nanos, true)
+}
+
+fn file_name_for_path(path: &str) -> &str {
+    Path::new(path)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or(path)
+}
+
 /// Hash any `Read` source and print the result. Extracted from `run_stdin` for testability.
 fn run_reader<R: Read>(reader: &mut R, algorithms: &[Algorithm], format: &Format) -> i32 {
     match hash_reader(reader, algorithms) {
@@ -52,17 +88,61 @@ fn run_reader<R: Read>(reader: &mut R, algorithms: &[Algorithm], format: &Format
 }
 
 fn run_stdin(algorithms: &[Algorithm], format: &Format) -> i32 {
-    run_reader(&mut io::stdin(), algorithms, format)
+    match format {
+        Format::Hex => run_reader(&mut io::stdin(), algorithms, format),
+        Format::Json => {
+            let mut reader = CountingReader::new(io::stdin());
+            match hash_reader(&mut reader, algorithms) {
+                Ok(digests) => {
+                    let entry = output::FileJsonEntry {
+                        path: "-",
+                        name: "-",
+                        size: reader.bytes_read,
+                        mod_time: format_system_time(SystemTime::now()),
+                        digests: &digests,
+                    };
+                    println!("{}", output::format_as_stdin_json(&entry));
+                    0
+                }
+                Err(e) => {
+                    eprintln!("{e}");
+                    1
+                }
+            }
+        }
+    }
 }
 
 fn run_files(algorithms: &[Algorithm], files: &[String], format: &Format) -> i32 {
     let mut results: Vec<(String, BTreeMap<String, String>)> = Vec::new();
+    let mut json_metadata: Vec<(String, u64, String)> = Vec::new();
     let mut exit_code = 0;
 
     for path in files {
-        match File::open(path) {
-            Ok(mut f) => match hash_reader(&mut f, algorithms) {
-                Ok(digests) => results.push((path.clone(), digests)),
+        match std::fs::metadata(path) {
+            Ok(metadata) => match metadata.modified() {
+                Ok(modified) => match File::open(path) {
+                    Ok(mut f) => match hash_reader(&mut f, algorithms) {
+                        Ok(digests) => {
+                            if matches!(format, Format::Json) {
+                                json_metadata.push((
+                                    file_name_for_path(path).to_string(),
+                                    metadata.len(),
+                                    format_system_time(modified),
+                                ));
+                            }
+                            results.push((path.clone(), digests));
+                        }
+                        Err(e) => {
+                            eprintln!("{path}: {e}");
+                            exit_code = 1;
+                        }
+                    },
+                    Err(e) => {
+                        eprintln!("{path}: {e}");
+                        exit_code = 1;
+                    }
+                },
                 Err(e) => {
                     eprintln!("{path}: {e}");
                     exit_code = 1;
@@ -77,9 +157,22 @@ fn run_files(algorithms: &[Algorithm], files: &[String], format: &Format) -> i32
 
     if !results.is_empty() {
         let pairs: Vec<(&str, &BTreeMap<String, String>)> =
-            results.iter().map(|(p, d)| (p.as_str(), d)).collect();
+            results.iter().map(|(path, digests)| (path.as_str(), digests)).collect();
         let out = match format {
-            Format::Json => output::format_as_file_json(&pairs),
+            Format::Json => {
+                let entries: Vec<output::FileJsonEntry<'_>> = results
+                    .iter()
+                    .zip(json_metadata.iter())
+                    .map(|((path, digests), (name, size, mod_time))| output::FileJsonEntry {
+                        path,
+                        name,
+                        size: *size,
+                        mod_time: mod_time.clone(),
+                        digests,
+                    })
+                    .collect();
+                output::format_as_file_json(&entries)
+            }
             Format::Hex => output::format_as_file_hex(&pairs),
         };
         println!("{}", out.trim_end_matches('\n'));
