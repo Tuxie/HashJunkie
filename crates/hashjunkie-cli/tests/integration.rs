@@ -86,10 +86,7 @@ fn stdin_with_two_algorithms_json_output_is_sorted() {
     assert_eq!(parsed["Size"], 3);
     let mod_time = parsed["ModTime"].as_str().unwrap();
     assert!(chrono::DateTime::parse_from_rfc3339(mod_time).is_ok());
-    assert_eq!(
-        parsed["Hashes"]["md5"],
-        "900150983cd24fb0d6963f7d28e17f72"
-    );
+    assert_eq!(parsed["Hashes"]["md5"], "900150983cd24fb0d6963f7d28e17f72");
     assert_eq!(
         parsed["Hashes"]["sha256"],
         "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"

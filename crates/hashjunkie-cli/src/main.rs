@@ -2,8 +2,8 @@ mod args;
 mod output;
 
 use args::{Args, Format};
-use clap::Parser;
 use chrono::{SecondsFormat, Utc};
+use clap::Parser;
 use hashjunkie_core::{Algorithm, MultiHasher};
 use std::collections::BTreeMap;
 use std::fs::File;
@@ -156,20 +156,24 @@ fn run_files(algorithms: &[Algorithm], files: &[String], format: &Format) -> i32
     }
 
     if !results.is_empty() {
-        let pairs: Vec<(&str, &BTreeMap<String, String>)> =
-            results.iter().map(|(path, digests)| (path.as_str(), digests)).collect();
+        let pairs: Vec<(&str, &BTreeMap<String, String>)> = results
+            .iter()
+            .map(|(path, digests)| (path.as_str(), digests))
+            .collect();
         let out = match format {
             Format::Json => {
                 let entries: Vec<output::FileJsonEntry<'_>> = results
                     .iter()
                     .zip(json_metadata.iter())
-                    .map(|((path, digests), (name, size, mod_time))| output::FileJsonEntry {
-                        path,
-                        name,
-                        size: *size,
-                        mod_time: mod_time.clone(),
-                        digests,
-                    })
+                    .map(
+                        |((path, digests), (name, size, mod_time))| output::FileJsonEntry {
+                            path,
+                            name,
+                            size: *size,
+                            mod_time: mod_time.clone(),
+                            digests,
+                        },
+                    )
                     .collect();
                 output::format_as_file_json(&entries)
             }

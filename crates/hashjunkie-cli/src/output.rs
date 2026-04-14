@@ -23,7 +23,8 @@ pub fn format_as_hex_lines(digests: &BTreeMap<String, String>) -> String {
 }
 
 fn file_entry_value(entry: &FileJsonEntry<'_>) -> serde_json::Value {
-    let hashes = serde_json::to_value(entry.digests).expect("BTreeMap<String, String> always serializes");
+    let hashes =
+        serde_json::to_value(entry.digests).expect("BTreeMap<String, String> always serializes");
     let mut obj = serde_json::Map::new();
     obj.insert("Hashes".to_string(), hashes);
     obj.insert(
@@ -38,17 +39,17 @@ fn file_entry_value(entry: &FileJsonEntry<'_>) -> serde_json::Value {
         "Path".to_string(),
         serde_json::Value::String(entry.path.to_string()),
     );
-    obj.insert("Size".to_string(), serde_json::Value::Number(entry.size.into()));
+    obj.insert(
+        "Size".to_string(),
+        serde_json::Value::Number(entry.size.into()),
+    );
     serde_json::Value::Object(obj)
 }
 
 /// Formats multiple file entries as a JSON array.
 /// Each element matches the `rclone lsjson --hash` object shape.
 pub fn format_as_file_json(files: &[FileJsonEntry<'_>]) -> String {
-    let array: Vec<serde_json::Value> = files
-        .iter()
-        .map(file_entry_value)
-        .collect();
+    let array: Vec<serde_json::Value> = files.iter().map(file_entry_value).collect();
     serde_json::to_string(&serde_json::Value::Array(array)).expect("file entries always serialize")
 }
 
