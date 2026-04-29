@@ -1,5 +1,7 @@
 export const ALGORITHMS = [
   "blake3",
+  "cidv0",
+  "cidv1",
   "crc32",
   "dropbox",
   "hidrive",
@@ -28,7 +30,7 @@ export type Backend = {
 
 /**
  * Validates and returns the algorithm list.
- * Returns all 13 algorithms when called with no argument.
+ * Returns all 15 algorithms when called with no argument.
  * Throws TypeError for unknown algorithm names or an empty array.
  */
 export function parseAlgorithms(algorithms?: readonly string[]): Algorithm[] {

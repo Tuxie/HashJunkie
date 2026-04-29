@@ -5,6 +5,8 @@ import type { Digests } from "./types";
 
 const MOCK_DIGESTS: Digests = {
   blake3: "aa",
+  cidv0: "Qm...",
+  cidv1: "bafkrei...",
   crc32: "bb",
   dropbox: "cc",
   hidrive: "dd",
@@ -62,8 +64,10 @@ async function pipe(hj: HashJunkie, inputs: Uint8Array[]): Promise<Uint8Array[]>
 // --- re-exports ---
 
 test("ALGORITHMS is re-exported from index", () => {
-  expect(ALGORITHMS).toHaveLength(13);
+  expect(ALGORITHMS).toHaveLength(15);
   expect(ALGORITHMS).toContain("sha256");
+  expect(ALGORITHMS).toContain("cidv0");
+  expect(ALGORITHMS).toContain("cidv1");
 });
 
 // --- passthrough ---

@@ -18,6 +18,14 @@ fn all_algorithms_match_known_vectors_for_small_bin() {
             "blake3",
             "882179b8dbccd285cda241d968cfcccb3156c5edac2fa3761bb6eda7ff8cb172",
         ),
+        (
+            "cidv0",
+            "bafkreidylmdvd7bmkpobjjgohwaa42ppttqqbhvte7gpiwfp4cocilbgze",
+        ),
+        (
+            "cidv1",
+            "bafkreidylmdvd7bmkpobjjgohwaa42ppttqqbhvte7gpiwfp4cocilbgze",
+        ),
         ("crc32", "b70b4c26"),
         (
             "dropbox",

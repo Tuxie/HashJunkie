@@ -30,7 +30,7 @@ fn version_exits_zero_and_contains_version() {
     let output = bin().arg("--version").output().unwrap();
     assert!(output.status.success());
     let stdout = String::from_utf8(output.stdout).unwrap();
-    assert!(stdout.contains("0.1.0"));
+    assert!(stdout.contains("0.3.0"));
 }
 
 #[test]
@@ -99,7 +99,7 @@ const FIXTURE: &str = concat!(
 );
 
 #[test]
-fn file_mode_all_13_hashes_correct_for_fixture() {
+fn file_mode_all_14_hashes_correct_for_fixture() {
     let output = bin().arg(FIXTURE).output().unwrap();
     assert!(
         output.status.success(),
@@ -112,6 +112,14 @@ fn file_mode_all_13_hashes_correct_for_fixture() {
     assert_eq!(
         hashes["blake3"],
         "882179b8dbccd285cda241d968cfcccb3156c5edac2fa3761bb6eda7ff8cb172"
+    );
+    assert_eq!(
+        hashes["cidv0"],
+        "bafkreidylmdvd7bmkpobjjgohwaa42ppttqqbhvte7gpiwfp4cocilbgze"
+    );
+    assert_eq!(
+        hashes["cidv1"],
+        "bafkreidylmdvd7bmkpobjjgohwaa42ppttqqbhvte7gpiwfp4cocilbgze"
     );
     assert_eq!(hashes["crc32"], "b70b4c26");
     assert_eq!(

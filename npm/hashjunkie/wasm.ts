@@ -22,7 +22,7 @@ export function makeWasmBackend(algorithms: Algorithm[]): Backend {
     },
     finalize(): Digests {
       // Trust assertion: WasmHasher.finalize() returns exactly the requested
-      // algorithm keys mapping to lowercase hex strings — same guarantee as
+      // algorithm keys mapping to digest strings — same guarantee as
       // the Rust MultiHasher it wraps.
       const result = hasher.finalize() as Digests;
       // Free the WASM heap allocation — wasm-bindgen does not GC automatically.

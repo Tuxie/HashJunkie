@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a `cid` algorithm that matches Kubo `ipfs add --nocopy` defaults for single-file byte streams.
+**Goal:** Add `cidv0` and `cidv1` algorithms matching Kubo `ipfs add --nocopy` and `ipfs add --nocopy --cid-version=1` for single-file byte streams.
 
-**Architecture:** Implement CID generation in `hashjunkie-core` as a streaming hasher selected by `Algorithm::Cid`. Keep CLI, WASM, and N-API integration through the existing algorithm enum and parser.
+**Architecture:** Implement CID generation in `hashjunkie-core` as streaming hashers selected by `Algorithm::CidV0` and `Algorithm::CidV1`. Keep CLI, WASM, and N-API integration through the existing algorithm enum and parser.
 
 **Tech Stack:** Rust 2021, existing `sha2` dependency, direct varint/base32/protobuf encoding, Cargo tests.
 
@@ -21,17 +21,18 @@
 
 - [ ] **Step 1: Write failing tests**
 
-Update count assertions from 13 to 14 and add `cid` expectations in parser/vector tests. Add a vector for `tests/fixtures/small.bin`:
+Update count assertions from 13 to 15 and add `cidv0`/`cidv1` expectations in parser/vector tests. Add vectors for `tests/fixtures/small.bin`:
 
 ```rust
-("cid", "EXPECTED_KUBO_CID_FOR_SMALL_BIN")
+("cidv0", "EXPECTED_KUBO_CID_FOR_SMALL_BIN")
+("cidv1", "EXPECTED_KUBO_CID_FOR_SMALL_BIN")
 ```
 
 - [ ] **Step 2: Run tests to verify failure**
 
 Run: `cargo test -p hashjunkie-core -p hashjunkie-cli -p hashjunkie-wasm`
 
-Expected: tests fail because `cid` is an unknown algorithm and the all-count assertions still see 13 algorithms.
+Expected: tests fail because `cidv0` and `cidv1` are unknown algorithms and the all-count assertions still see 13 algorithms.
 
 ### Task 2: Implement CID Encoding
 
@@ -53,11 +54,11 @@ const MULTICODEC_RAW: u64 = 0x55;
 const MULTICODEC_DAG_PB: u64 = 0x70;
 ```
 
-Implement unsigned-varint encoding, base32-lower-no-padding with multibase `b`, SHA2-256 multihash wrapping, CIDv1 bytes, DAG-PB node/link encoding, and UnixFS file data encoding.
+Implement unsigned-varint encoding, base32-lower-no-padding with multibase `b`, base58btc multihash output for CIDv0 DAG-PB roots, SHA2-256 multihash wrapping, CIDv1 bytes, DAG-PB node/link encoding, and UnixFS file data encoding.
 
 - [ ] **Step 2: Wire the algorithm**
 
-Add `Algorithm::Cid`, `as_str() == "cid"`, parser support, `Algorithm::all()` inclusion, and `make_hasher(Algorithm::Cid)`.
+Add `Algorithm::CidV0` and `Algorithm::CidV1`, `as_str() == "cidv0"` / `"cidv1"`, parser support, `Algorithm::all()` inclusion, and `make_hasher(...)` arms.
 
 - [ ] **Step 3: Run focused tests**
 
@@ -75,7 +76,7 @@ Expected: core tests pass including vectors.
 
 - [ ] **Step 1: Update documentation text and counts**
 
-Mention `cid` in user-facing algorithm lists and update any “all 13 algorithms” text to 14.
+Mention `cidv0` and `cidv1` in user-facing algorithm lists and update any “all 13 algorithms” text to 15.
 
 - [ ] **Step 2: Run full verification**
 

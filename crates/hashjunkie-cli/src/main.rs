@@ -15,7 +15,7 @@ use std::time::SystemTime;
 const CHUNK_SIZE: usize = 64 * 1024;
 
 /// Streams all bytes from `reader` through the given algorithms in 64 KiB chunks.
-/// Returns a sorted map of algorithm name → lowercase hex digest.
+/// Returns a sorted map of algorithm name to digest string.
 fn hash_reader<R: Read>(
     reader: &mut R,
     algorithms: &[Algorithm],

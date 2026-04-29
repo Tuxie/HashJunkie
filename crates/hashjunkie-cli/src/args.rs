@@ -66,9 +66,9 @@ mod tests {
     }
 
     #[test]
-    fn resolved_algorithms_none_returns_all_13() {
+    fn resolved_algorithms_none_returns_all_15() {
         let args = Args::parse_from(["hashjunkie"]);
-        assert_eq!(args.resolved_algorithms().unwrap().len(), 13);
+        assert_eq!(args.resolved_algorithms().unwrap().len(), 15);
     }
 
     #[test]

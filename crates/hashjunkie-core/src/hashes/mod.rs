@@ -12,6 +12,9 @@ pub use blake3::Blake3Hasher;
 mod crc32;
 pub use crc32::Crc32Hasher;
 
+mod ipfs_cid;
+pub use ipfs_cid::CidHasher;
+
 mod xxhash;
 pub use xxhash::{Xxh128Hasher, Xxh3Hasher};
 

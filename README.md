@@ -7,7 +7,7 @@ HashJunkie ships as two tools that share the same Rust core:
 - **`@perw/hashjunkie`** — TypeScript/JavaScript library for Bun and Node.js
 - **`hashjunkie` CLI** — standalone binary for shell scripts and pipelines
 
-Both support the same 13 algorithms and produce identical output.
+Both support the same 15 algorithms and produce identical output.
 
 ---
 
@@ -36,7 +36,7 @@ await w.write(new TextEncoder().encode("hello"));
 await w.close();
 const { sha256 } = await hj.digests;  // lowercase hex string
 
-// No arguments = all 13 algorithms at once
+// No arguments = all 15 algorithms at once
 const hj2 = new HashJunkie();
 ```
 
@@ -59,7 +59,7 @@ Release assets are published with these archive names:
 ### Hash files
 
 ```sh
-# All 13 algorithms, JSON output (default)
+# All 15 algorithms, JSON output (default)
 hashjunkie file.bin
 
 # Specific algorithms
@@ -113,6 +113,8 @@ echo "SHA-256: $sha"
 | Algorithm | Description | Output |
 |---|---|---|
 | `blake3` | BLAKE3 | 64 hex chars |
+| `cidv0` | IPFS CID matching stock Kubo `ipfs add --nocopy` defaults | CID string |
+| `cidv1` | IPFS CIDv1 for `ipfs add --nocopy --cid-version=1` | base32 CID string |
 | `crc32` | CRC-32 | 8 hex chars |
 | `dropbox` | Dropbox content hash — SHA-256 over 4 MiB blocks | 64 hex chars |
 | `hidrive` | STRATO HiDrive — SHA-1 block tree | 40 hex chars |
@@ -126,7 +128,7 @@ echo "SHA-256: $sha"
 | `xxh128` | xxHash 128-bit | 32 hex chars |
 | `xxh3` | xxHash 64-bit | 16 hex chars |
 
-All digests are lowercase hex strings. The JSON field names match the algorithm names above and are always sorted alphabetically.
+Most digests are lowercase hex strings. `cidv0` returns Kubo-compatible CIDv0 roots for multi-block DAG-PB files and CIDv1 raw-leaf strings for single-block files. `cidv1` returns lowercase base32 CIDv1 strings. The JSON field names match the algorithm names above and are always sorted alphabetically.
 
 The multi-block algorithms (`dropbox`, `hidrive`, `mailru`) produce output compatible with [rclone](https://rclone.org/)'s `lsjson --hash` command.
 
@@ -151,7 +153,7 @@ The JS library loads the native addon if available, otherwise falls back to WASM
 ```
 hashjunkie/
 ├── crates/
-│   ├── hashjunkie-core/        # Rust hash logic — all 13 algorithms
+│   ├── hashjunkie-core/        # Rust hash logic — all 15 algorithms
 │   ├── hashjunkie-napi/        # napi-rs wrapper → platform .node addons
 │   └── hashjunkie-cli/         # Standalone binary (clap, stdin + file modes)
 ├── npm/

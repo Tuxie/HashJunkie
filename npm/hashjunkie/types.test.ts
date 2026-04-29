@@ -2,13 +2,15 @@ import { expect, test } from "bun:test";
 import type { Algorithm } from "./types";
 import { ALGORITHMS, parseAlgorithms } from "./types";
 
-test("ALGORITHMS contains exactly 13 algorithms", () => {
-  expect(ALGORITHMS).toHaveLength(13);
+test("ALGORITHMS contains exactly 15 algorithms", () => {
+  expect(ALGORITHMS).toHaveLength(15);
 });
 
 test("ALGORITHMS includes all required algorithm names", () => {
   const required: Algorithm[] = [
     "blake3",
+    "cidv0",
+    "cidv1",
     "crc32",
     "dropbox",
     "hidrive",
@@ -27,16 +29,16 @@ test("ALGORITHMS includes all required algorithm names", () => {
   }
 });
 
-test("parseAlgorithms() with no argument returns all 13 algorithms", () => {
+test("parseAlgorithms() with no argument returns all 15 algorithms", () => {
   const result = parseAlgorithms();
-  expect(result).toHaveLength(13);
+  expect(result).toHaveLength(15);
   expect(result).toEqual([...ALGORITHMS]);
 });
 
 test("parseAlgorithms() returns a mutable copy (not the const array)", () => {
   const result = parseAlgorithms();
   result.push("sha256" as never); // should not throw
-  expect(ALGORITHMS).toHaveLength(13); // original unchanged
+  expect(ALGORITHMS).toHaveLength(15); // original unchanged
 });
 
 test("parseAlgorithms() with a valid subset returns that subset", () => {

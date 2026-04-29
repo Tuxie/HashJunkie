@@ -259,6 +259,16 @@ jobs:
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
 
+      - name: Stamp Cargo crate versions
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ needs.version.outputs.new }}"
+          for manifest in crates/hashjunkie-{core,cli,napi,wasm}/Cargo.toml; do
+            sed -i.bak -E "s/^version = \".*\"/version = \"${VERSION}\"/" "$manifest"
+            rm "$manifest.bak"
+          done
+
       - name: Build
         run: >
           cargo build

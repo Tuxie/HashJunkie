@@ -3,6 +3,9 @@ import { makeWasmBackend } from "./wasm";
 
 // SHA-256("abc") — verified via sha256sum and Python hashlib.
 const ABC_SHA256 = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+const ABC_CID = "bafkreif2pall7dybz7vecqka3zo24irdwabwdi4wc55jznaq75q7eaavvu";
+const ZEROES_MULTI_CIDV0 = "Qmc2SWxBGrBtWKZxuyg8999QuzXsPR47zsWiM7Yq9YFUXT";
+const ZEROES_MULTI_CIDV1 = "bafybeigllfqgfpqydppr6cmv56g7ax4wyhruzswvcefv6j5kj77nzttfki";
 // MD5("") — verified via md5sum /dev/null / RFC 1321.
 const EMPTY_MD5 = "d41d8cd98f00b204e9800998ecf8427e";
 
@@ -18,6 +21,21 @@ test("makeWasmBackend: md5 of empty input matches known value", () => {
   backend.update(new Uint8Array(0));
   const digests = backend.finalize();
   expect(digests.md5).toBe(EMPTY_MD5);
+});
+
+test("makeWasmBackend: cidv1 of 'abc' matches raw-leaf IPFS CID", () => {
+  const backend = makeWasmBackend(["cidv1"]);
+  backend.update(new TextEncoder().encode("abc"));
+  const digests = backend.finalize();
+  expect(digests.cidv1).toBe(ABC_CID);
+});
+
+test("makeWasmBackend: cidv0 and cidv1 match Kubo for multi-chunk input", () => {
+  const backend = makeWasmBackend(["cidv0", "cidv1"]);
+  backend.update(new Uint8Array(262_145));
+  const digests = backend.finalize();
+  expect(digests.cidv0).toBe(ZEROES_MULTI_CIDV0);
+  expect(digests.cidv1).toBe(ZEROES_MULTI_CIDV1);
 });
 
 test("makeWasmBackend: multi-chunk update matches single-chunk", () => {

@@ -79,7 +79,7 @@ export class HashJunkie extends TransformStream<Uint8Array, Uint8Array> {
  * streams, no writers, no pipes.
  *
  * @param data - input bytes to hash
- * @param algorithms - subset of algorithms to compute; omit for all 13
+ * @param algorithms - subset of algorithms to compute; omit for all 15
  */
 export async function hashBuffer(data: Uint8Array, algorithms?: Algorithm[]): Promise<Digests> {
   const hj = new HashJunkie(algorithms);
@@ -94,7 +94,7 @@ export async function hashBuffer(data: Uint8Array, algorithms?: Algorithm[]): Pr
  * fully drained; the pass-through bytes are discarded.
  *
  * @param stream - source stream to consume
- * @param algorithms - subset of algorithms to compute; omit for all 13
+ * @param algorithms - subset of algorithms to compute; omit for all 15
  */
 export async function hashStream(
   stream: ReadableStream<Uint8Array>,

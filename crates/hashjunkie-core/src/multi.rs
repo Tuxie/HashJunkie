@@ -40,6 +40,8 @@ fn make_hasher(alg: Algorithm) -> Box<dyn Hasher> {
     use hashes::*;
     match alg {
         Algorithm::Blake3 => Box::new(Blake3Hasher::new()),
+        Algorithm::CidV0 => Box::new(CidHasher::v0()),
+        Algorithm::CidV1 => Box::new(CidHasher::v1()),
         Algorithm::Crc32 => Box::new(Crc32Hasher::new()),
         Algorithm::Dropbox => Box::new(DropboxHasher::new()),
         Algorithm::Hidrive => Box::new(HidriveHasher::new()),
@@ -71,11 +73,11 @@ mod tests {
     }
 
     #[test]
-    fn all_produces_all_13_algorithms() {
+    fn all_produces_all_15_algorithms() {
         let mut h = MultiHasher::all();
         h.update(b"");
         let digests = h.finalize();
-        assert_eq!(digests.len(), 13);
+        assert_eq!(digests.len(), 15);
     }
 
     #[test]

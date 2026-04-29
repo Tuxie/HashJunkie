@@ -3,6 +3,8 @@ use std::fmt;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Algorithm {
     Blake3,
+    CidV0,
+    CidV1,
     Crc32,
     Dropbox,
     Hidrive,
@@ -21,6 +23,8 @@ impl Algorithm {
     pub fn all() -> &'static [Algorithm] {
         &[
             Algorithm::Blake3,
+            Algorithm::CidV0,
+            Algorithm::CidV1,
             Algorithm::Crc32,
             Algorithm::Dropbox,
             Algorithm::Hidrive,
@@ -39,6 +43,8 @@ impl Algorithm {
     pub fn as_str(&self) -> &'static str {
         match self {
             Algorithm::Blake3 => "blake3",
+            Algorithm::CidV0 => "cidv0",
+            Algorithm::CidV1 => "cidv1",
             Algorithm::Crc32 => "crc32",
             Algorithm::Dropbox => "dropbox",
             Algorithm::Hidrive => "hidrive",
@@ -78,6 +84,8 @@ impl std::str::FromStr for Algorithm {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "blake3" => Ok(Algorithm::Blake3),
+            "cidv0" => Ok(Algorithm::CidV0),
+            "cidv1" => Ok(Algorithm::CidV1),
             "crc32" => Ok(Algorithm::Crc32),
             "dropbox" => Ok(Algorithm::Dropbox),
             "hidrive" => Ok(Algorithm::Hidrive),
@@ -101,8 +109,8 @@ mod tests {
     use std::str::FromStr;
 
     #[test]
-    fn all_returns_13_algorithms() {
-        assert_eq!(Algorithm::all().len(), 13);
+    fn all_returns_15_algorithms() {
+        assert_eq!(Algorithm::all().len(), 15);
     }
 
     #[test]

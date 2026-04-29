@@ -68,7 +68,7 @@ pub struct WasmHasher(HasherCore);
 impl WasmHasher {
     /// Create a new hasher. Pass an array of algorithm name strings (e.g.
     /// `['sha256', 'blake3']`) or omit / pass `null` / `undefined` to hash
-    /// with all 13 algorithms. Throws if any name is unrecognised or if an
+    /// with all 15 algorithms. Throws if any name is unrecognised or if an
     /// empty array is passed.
     #[wasm_bindgen(constructor)]
     pub fn new(algorithms: JsValue) -> Result<WasmHasher, JsValue> {
@@ -95,7 +95,7 @@ impl WasmHasher {
     }
 
     /// Finalize all hashers and return a plain JS object mapping algorithm
-    /// name to lowercase hex digest string. Throws if called again after the
+    /// name to digest string. Throws if called again after the
     /// first `finalize()`.
     pub fn finalize(&mut self) -> Result<JsValue, JsValue> {
         let digests = self.0.finalize().map_err(JsValue::from_str)?;

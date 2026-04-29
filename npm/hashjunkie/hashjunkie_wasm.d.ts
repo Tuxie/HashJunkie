@@ -15,14 +15,14 @@ export class WasmHasher {
     [Symbol.dispose](): void;
     /**
      * Finalize all hashers and return a plain JS object mapping algorithm
-     * name to lowercase hex digest string. Throws if called again after the
+     * name to digest string. Throws if called again after the
      * first `finalize()`.
      */
     finalize(): any;
     /**
      * Create a new hasher. Pass an array of algorithm name strings (e.g.
      * `['sha256', 'blake3']`) or omit / pass `null` / `undefined` to hash
-     * with all 13 algorithms. Throws if any name is unrecognised or if an
+     * with all 15 algorithms. Throws if any name is unrecognised or if an
      * empty array is passed.
      */
     constructor(algorithms: any);

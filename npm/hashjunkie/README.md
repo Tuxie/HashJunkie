@@ -1,6 +1,6 @@
 # HashJunkie
 
-Multi-hash streaming library for Bun and Node.js. Computes any combination of 13 hash algorithms in a single pass — zero extra copies, no external system dependencies.
+Multi-hash streaming library for Bun and Node.js. Computes any combination of 15 hash algorithms in a single pass — zero extra copies, no external system dependencies.
 
 ```ts
 import { HashJunkie } from "@perw/hashjunkie";
@@ -16,6 +16,8 @@ const { sha256, blake3, md5 } = await hj.digests;
 | Name | Description |
 |---|---|
 | `blake3` | BLAKE3 (256-bit) |
+| `cidv0` | IPFS CID matching stock Kubo `ipfs add --nocopy` defaults |
+| `cidv1` | IPFS CIDv1 for `ipfs add --nocopy --cid-version=1` |
 | `crc32` | CRC-32 |
 | `dropbox` | Dropbox content hash (SHA-256 of 4 MiB blocks) |
 | `hidrive` | STRATO HiDrive hash (SHA-1 block tree) |
@@ -29,7 +31,7 @@ const { sha256, blake3, md5 } = await hj.digests;
 | `xxh128` | xxHash 128-bit |
 | `xxh3` | xxHash 64-bit (xxh3) |
 
-Pass no arguments to get all 13 hashes at once.
+Pass no arguments to get all 15 hashes at once.
 
 ## Installation
 
@@ -60,7 +62,7 @@ import { ALGORITHMS } from "@perw/hashjunkie";
 console.log(ALGORITHMS); // readonly ["blake3", "crc32", ...]
 ```
 
-All digests are lowercase hex strings. The `digests` promise resolves when the writable side closes cleanly, and rejects if the stream is aborted.
+Most digests are lowercase hex strings. `cidv0` returns Kubo-compatible CIDv0 roots for multi-block DAG-PB files and CIDv1 raw-leaf strings for single-block files. `cidv1` returns lowercase base32 CIDv1 strings. The `digests` promise resolves when the writable side closes cleanly, and rejects if the stream is aborted.
 
 ## How it works
 
@@ -70,7 +72,7 @@ The native path is **zero-copy**: each chunk is passed directly to the Rust hash
 
 ## Performance
 
-On an M2 MacBook Pro, hashing a 1 GiB file with all 13 algorithms simultaneously runs at ~2.5 GiB/s with the native addon.
+On an M2 MacBook Pro, hashing a 1 GiB file with all 13 pre-CID algorithms simultaneously runs at ~2.5 GiB/s with the native addon.
 
 ## Types
 
@@ -80,7 +82,7 @@ import type { Algorithm, Digests } from "@perw/hashjunkie";
 
 ```ts
 type Algorithm =
-  | "blake3" | "crc32" | "dropbox" | "hidrive" | "mailru"
+  | "blake3" | "cidv0" | "cidv1" | "crc32" | "dropbox" | "hidrive" | "mailru"
   | "md5" | "quickxor" | "sha1" | "sha256" | "sha512"
   | "whirlpool" | "xxh128" | "xxh3";
 
