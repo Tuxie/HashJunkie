@@ -290,6 +290,11 @@ mod tests {
     }
 
     #[test]
+    fn base58btc_preserves_leading_zero_bytes() {
+        assert_eq!(multihash_to_base58btc(&[0, 0, 1]), "112");
+    }
+
+    #[test]
     fn chunked_updates_match_single_update() {
         let data = vec![42; CHUNK_SIZE + 17];
 
