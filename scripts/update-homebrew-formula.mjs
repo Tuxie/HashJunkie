@@ -42,7 +42,11 @@ export async function updateFormula({ formula, artifacts, version }) {
   let contents = await readFile(formula, "utf8");
   contents = contents.replace(
     /^  release_version = "[^"]+"$/m,
-    `  release_version = "${version}"`,
+    `  release_version = "${version}"\n  version release_version`,
+  );
+  contents = contents.replace(
+    /^  release_version = "([^"]+)"\n  version release_version\n  version release_version$/m,
+    `  release_version = "$1"\n  version release_version`,
   );
 
   for (const [platform, hash] of hashes) {

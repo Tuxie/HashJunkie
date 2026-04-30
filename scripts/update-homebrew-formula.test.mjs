@@ -75,11 +75,43 @@ test("updateFormula writes release version and archive SHA256s", async () => {
 
     const updated = await readFile(formula, "utf8");
     assert.match(updated, /release_version = "0\.3\.1"/);
+    assert.match(updated, /version release_version/);
     for (const [platform, sha] of Object.entries(expected)) {
       assert(updated.includes(`hashjunkie-cli-#{release_version}-${platform}.tar.xz`));
       assert(updated.includes(`sha256 "${sha}"`));
     }
     assert(!updated.includes("old-darwin-arm64"));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("updateFormula keeps explicit version line idempotent", async () => {
+  const root = await mkdtemp(join(tmpdir(), "hashjunkie-formula-"));
+  try {
+    const formula = join(root, "hashjunkie.rb");
+    const artifacts = join(root, "artifacts");
+    await writeFile(
+      formula,
+      oldFormula.replace(
+        '  release_version = "0.3.0"',
+        '  release_version = "0.3.0"\n  version release_version',
+      ),
+    );
+    await mkdir(artifacts);
+
+    for (const platform of platforms) {
+      await writeFile(
+        join(artifacts, `hashjunkie-cli-0.3.1-${platform}.tar.xz`),
+        Buffer.from(`archive:${platform}`),
+      );
+    }
+
+    await updateFormula({ formula, artifacts, version: "0.3.1" });
+    await updateFormula({ formula, artifacts, version: "0.3.1" });
+
+    const updated = await readFile(formula, "utf8");
+    assert.equal(updated.match(/version release_version/g)?.length, 1);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
