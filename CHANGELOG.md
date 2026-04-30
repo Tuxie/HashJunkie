@@ -2,12 +2,21 @@
 
 ## Unreleased
 
+## 0.5.0 - 2026-04-30
+
+HashJunkie 0.5.0 expands file-sharing hash support beyond IPFS with ED2K,
+AICH, Tiger Tree, and BitTorrent v2 per-file hashes.
+
 ### Added
 
 - Added `aich` hash support for eMule/aMule AICH root hashes.
 - Added `ed2k` hash support for eDonkey/eMule/MLDonkey-compatible file hashes.
 - Added `tiger` Tiger Tree Hash support for Gnutella2/Direct Connect-compatible file hashes.
 - Added `btv2` hash support for BitTorrent v2 per-file `pieces root` hashes.
+
+### Changed
+
+- The default algorithm set now computes 18 hashes and continues to omit only `whirlpool` unless requested explicitly.
 
 ## 0.4.0 - 2026-04-30
 
