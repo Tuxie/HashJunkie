@@ -230,9 +230,12 @@ The script builds the WASM binary, runs `wasm-bindgen`, and writes the base64-en
 
 ```sh
 node scripts/version-sync.mjs check
+node scripts/release-notes.mjs "$(node scripts/version-sync.mjs print)"
 ```
 
-Pushing release-relevant changes to `main` triggers the GitHub Actions release path. The workflow publishes the platform npm packages, publishes `@perw/hashjunkie`, tags `v{VERSION}`, uploads CLI archives to the GitHub Release, and updates `Tuxie/homebrew-tap` with the release version and archive SHA256s.
+Update `CHANGELOG.md` before every release. The section for `VERSION` is used as the GitHub Release body, so it must be written for users, not as a raw commit dump.
+
+Pushing release-relevant changes to `main` triggers the GitHub Actions release path. The workflow publishes the platform npm packages, publishes `@perw/hashjunkie`, tags `v{VERSION}`, uploads CLI archives to the GitHub Release, updates the GitHub Release notes from `CHANGELOG.md`, and updates `Tuxie/homebrew-tap` with the release version and archive SHA256s.
 
 ### Commit style
 
@@ -244,6 +247,8 @@ fix: correct HiDrive block boundary for files < 128 KiB
 test: add regression test for dropbox empty-file edge case
 chore: update blake3 crate to 1.6.0
 ```
+
+Commit subjects should be good enough that `git log --oneline <previous-tag>..HEAD` can be used as the first draft for the next release notes. Avoid vague subjects like `fix tests`, `misc`, or `release changes`; name the behavior, packaging, performance, or documentation outcome.
 
 ---
 
