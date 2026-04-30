@@ -1,7 +1,7 @@
 use rayon::prelude::*;
 use sha1::{Digest, Sha1};
 
-use crate::hashes::Hasher;
+use crate::{DigestValue, base32_upper_no_padding, hashes::Hasher};
 
 const PART_SIZE: u64 = 9_728_000;
 const BLOCK_SIZE: u64 = 180 * 1024;
@@ -96,7 +96,11 @@ impl Hasher for AichHasher {
         }
     }
 
-    fn finalize_hex(mut self: Box<Self>) -> String {
+    fn finalize_hex(self: Box<Self>) -> String {
+        self.finalize_digest().standard().to_string()
+    }
+
+    fn finalize_digest(mut self: Box<Self>) -> DigestValue {
         if !self.current_block.is_empty()
             || (self.total_size == 0
                 && self.block_hashes.is_empty()
@@ -107,7 +111,9 @@ impl Hasher for AichHasher {
         }
         self.flush_pending_blocks();
 
-        base32_no_padding(&aich_root(&self.block_hashes, self.total_size))
+        let raw = aich_root(&self.block_hashes, self.total_size);
+        let standard = base32_upper_no_padding(&raw);
+        DigestValue::from_raw_standard(raw, standard)
     }
 }
 
@@ -192,33 +198,6 @@ fn sha1_pair(left: &[u8; 20], right: &[u8; 20]) -> [u8; 20] {
     hasher.update(left);
     hasher.update(right);
     hasher.finalize().into()
-}
-
-fn base32_no_padding(bytes: &[u8]) -> String {
-    const ALPHABET: &[u8; 32] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-    let mut out = String::with_capacity((bytes.len() * 8).div_ceil(5));
-    let mut buffer = 0u16;
-    let mut bits = 0u8;
-
-    for byte in bytes {
-        buffer = (buffer << 8) | u16::from(*byte);
-        bits += 8;
-
-        while bits >= 5 {
-            let shift = bits - 5;
-            let index = ((buffer >> shift) & 0x1f) as usize;
-            out.push(ALPHABET[index] as char);
-            bits -= 5;
-            buffer &= (1 << bits) - 1;
-        }
-    }
-
-    if bits > 0 {
-        let index = ((buffer << (5 - bits)) & 0x1f) as usize;
-        out.push(ALPHABET[index] as char);
-    }
-
-    out
 }
 
 #[cfg(test)]
@@ -327,6 +306,6 @@ mod tests {
 
     #[test]
     fn base32_encodes_remaining_bits() {
-        assert_eq!(base32_no_padding(&[0xff]), "74");
+        assert_eq!(base32_upper_no_padding(&[0xff]), "74");
     }
 }

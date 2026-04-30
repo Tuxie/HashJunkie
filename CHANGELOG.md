@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Added CLI `--hex` to display the raw digest bytes as lowercase hex, even for
+  algorithms whose standard text form is Base32, Base58, or CID text.
+- Added `HashJunkie.hexdigests` and `HashJunkie.rawdigests` promises for the
+  Node/Bun API while keeping `HashJunkie.digests` as the standard visual
+  representation.
+
 ## 0.5.2 - 2026-04-30
 
 HashJunkie 0.5.2 adds shell-friendly CLI output modes for pipelines and

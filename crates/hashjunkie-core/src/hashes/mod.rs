@@ -1,6 +1,12 @@
+use crate::DigestValue;
+
 pub trait Hasher: Send {
     fn update(&mut self, data: &[u8]);
     fn finalize_hex(self: Box<Self>) -> String;
+
+    fn finalize_digest(self: Box<Self>) -> DigestValue {
+        DigestValue::from_hex(self.finalize_hex()).expect("hex hasher returned valid lowercase hex")
+    }
 }
 
 mod rustcrypto;

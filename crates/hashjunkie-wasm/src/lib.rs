@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use js_sys::{Object, Reflect};
+use js_sys::{Object, Reflect, Uint8Array};
 use wasm_bindgen::prelude::*;
 
-use hashjunkie_core::{Algorithm, MultiHasher};
+use hashjunkie_core::{Algorithm, DigestValue, MultiHasher};
 
 pub(crate) fn parse_algorithm_names(names: Option<Vec<String>>) -> Result<Vec<Algorithm>, String> {
     match names {
@@ -46,12 +46,39 @@ impl HasherCore {
         Ok(())
     }
 
+    #[cfg(test)]
     fn finalize(&mut self) -> Result<HashMap<Algorithm, String>, &'static str> {
         self.inner
             .take()
             .ok_or("hasher already finalized")
             .map(MultiHasher::finalize)
     }
+
+    fn finalize_digests(&mut self) -> Result<HashMap<Algorithm, DigestValue>, &'static str> {
+        self.inner
+            .take()
+            .ok_or("hasher already finalized")
+            .map(MultiHasher::finalize_digests)
+    }
+}
+
+fn digest_bundle_to_js(digests: HashMap<Algorithm, DigestValue>) -> Result<JsValue, JsValue> {
+    let standard = Object::new();
+    let hex = Object::new();
+    let raw = Object::new();
+
+    for (alg, digest) in digests {
+        let key = JsValue::from_str(alg.as_str());
+        Reflect::set(&standard, &key, &JsValue::from_str(digest.standard()))?;
+        Reflect::set(&hex, &key, &JsValue::from_str(&digest.hex()))?;
+        Reflect::set(&raw, &key, &Uint8Array::from(digest.raw()).into())?;
+    }
+
+    let bundle = Object::new();
+    Reflect::set(&bundle, &JsValue::from_str("digests"), &standard)?;
+    Reflect::set(&bundle, &JsValue::from_str("hexdigests"), &hex)?;
+    Reflect::set(&bundle, &JsValue::from_str("rawdigests"), &raw)?;
+    Ok(bundle.into())
 }
 
 /// A streaming multi-algorithm hasher exposed to JavaScript via WebAssembly.
@@ -59,7 +86,7 @@ impl HasherCore {
 /// ```js
 /// const h = new WasmHasher(['sha256', 'blake3']);
 /// h.update(new Uint8Array([104, 101, 108, 108, 111]));
-/// const digests = h.finalize(); // { sha256: '...', blake3: '...' }
+/// const bundle = h.finalize(); // { digests, hexdigests, rawdigests }
 /// ```
 #[wasm_bindgen]
 pub struct WasmHasher(HasherCore);
@@ -95,22 +122,12 @@ impl WasmHasher {
         self.0.update(data).map_err(JsValue::from_str)
     }
 
-    /// Finalize all hashers and return a plain JS object mapping algorithm
-    /// name to digest string. Throws if called again after the
+    /// Finalize all hashers and return standard, hex, and raw digest maps.
+    /// Throws if called again after the
     /// first `finalize()`.
     pub fn finalize(&mut self) -> Result<JsValue, JsValue> {
-        let digests = self.0.finalize().map_err(JsValue::from_str)?;
-        let obj = Object::new();
-        for (alg, digest) in &digests {
-            // Reflect::set fails only when the target is a non-extensible object or a
-            // Proxy that rejects writes; plain Object::new() never triggers this.
-            Reflect::set(
-                &obj,
-                &JsValue::from_str(alg.as_str()),
-                &JsValue::from_str(digest),
-            )?;
-        }
-        Ok(obj.into())
+        let digests = self.0.finalize_digests().map_err(JsValue::from_str)?;
+        digest_bundle_to_js(digests)
     }
 }
 
@@ -169,6 +186,21 @@ mod tests {
         assert_eq!(
             digests[&Algorithm::Sha256],
             "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
+    }
+
+    #[test]
+    fn hasher_core_finalize_digests_exposes_hex_for_standard_non_hex() {
+        let mut core = HasherCore::new(&[Algorithm::Aich]);
+        core.update(b"abc").unwrap();
+        let digests = core.finalize_digests().unwrap();
+        assert_eq!(
+            digests[&Algorithm::Aich].standard(),
+            "VGMT4NSHA2AWVOR6EVYXQUGCNSONBWE5"
+        );
+        assert_eq!(
+            digests[&Algorithm::Aich].hex(),
+            "a9993e364706816aba3e25717850c26c9cd0d89d"
         );
     }
 }

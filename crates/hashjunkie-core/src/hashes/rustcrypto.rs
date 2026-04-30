@@ -1,4 +1,4 @@
-use crate::hashes::Hasher;
+use crate::{DigestValue, hashes::Hasher};
 use digest::Digest;
 
 pub trait RustCryptoHashable: Digest + Default + Send + 'static {}
@@ -28,7 +28,11 @@ impl<D: RustCryptoHashable> Hasher for RustCryptoHasher<D> {
     }
 
     fn finalize_hex(self: Box<Self>) -> String {
-        hex::encode(self.inner.finalize())
+        self.finalize_digest().standard().to_string()
+    }
+
+    fn finalize_digest(self: Box<Self>) -> DigestValue {
+        DigestValue::from_raw_hex(self.inner.finalize().to_vec())
     }
 }
 

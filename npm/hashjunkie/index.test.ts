@@ -8,7 +8,7 @@ import {
   hashStream,
 } from "./index";
 import { _setLoaders } from "./loader";
-import type { Digests } from "./types";
+import type { DigestBundle, Digests, HexDigests, RawDigests } from "./types";
 
 const MOCK_DIGESTS: Digests = {
   aich: "a9",
@@ -32,10 +32,52 @@ const MOCK_DIGESTS: Digests = {
   xxh3: "88",
 };
 
+const MOCK_HEXDIGESTS: HexDigests = {
+  aich: "a9",
+  blake3: "aa",
+  btv2: "99",
+  cidv0: "010203",
+  cidv1: "040506",
+  crc32: "bb",
+  dropbox: "cc",
+  ed2k: "dd",
+  hidrive: "ee",
+  mailru: "ff",
+  md5: "00",
+  quickxor: "11",
+  sha1: "22",
+  sha256: "33",
+  sha512: "44",
+  tiger: "55",
+  whirlpool: "66",
+  xxh128: "77",
+  xxh3: "88",
+};
+
 function pickDigests(algorithms: readonly string[]): Digests {
   return Object.fromEntries(
     algorithms.map((algorithm) => [algorithm, MOCK_DIGESTS[algorithm as keyof Digests]]),
   ) as Digests;
+}
+
+function pickHexDigests(algorithms: readonly string[]): HexDigests {
+  return Object.fromEntries(
+    algorithms.map((algorithm) => [algorithm, MOCK_HEXDIGESTS[algorithm as keyof HexDigests]]),
+  ) as HexDigests;
+}
+
+function pickRawDigests(algorithms: readonly string[]): RawDigests {
+  return Object.fromEntries(
+    algorithms.map((algorithm, i) => [algorithm, new Uint8Array([i, i + 1, i + 2])]),
+  ) as RawDigests;
+}
+
+function pickDigestBundle(algorithms: readonly string[]): DigestBundle {
+  return {
+    digests: pickDigests(algorithms),
+    hexdigests: pickHexDigests(algorithms),
+    rawdigests: pickRawDigests(algorithms),
+  };
 }
 
 // Install a working mock backend before every test so constructing HashJunkie succeeds.
@@ -50,8 +92,8 @@ beforeEach(() => {
         }
 
         update(_data: Buffer): void {}
-        finalize(): Record<string, string> {
-          return pickDigests(this.algorithms);
+        finalize(): DigestBundle {
+          return pickDigestBundle(this.algorithms);
         }
       },
       hashFile: async (_path: string, algorithms: string[]) => pickDigests(algorithms),
@@ -131,6 +173,20 @@ test("HashJunkie.digests resolves with backend digests after stream close", asyn
   const hj = new HashJunkie([...algorithms]);
   await pipe(hj, [new Uint8Array([0xca, 0xfe])]);
   expect(await hj.digests).toEqual(pickDigests(algorithms));
+});
+
+test("HashJunkie.hexdigests resolves with lowercase hex after stream close", async () => {
+  const algorithms = ["cidv0", "cidv1"] as const;
+  const hj = new HashJunkie([...algorithms]);
+  await pipe(hj, [new Uint8Array([0xca, 0xfe])]);
+  expect(await hj.hexdigests).toEqual(pickHexDigests(algorithms));
+});
+
+test("HashJunkie.rawdigests resolves with raw digest bytes after stream close", async () => {
+  const algorithms = ["sha256", "aich"] as const;
+  const hj = new HashJunkie([...algorithms]);
+  await pipe(hj, [new Uint8Array([0xca, 0xfe])]);
+  expect(await hj.rawdigests).toEqual(pickRawDigests(algorithms));
 });
 
 test("HashJunkie with no constructor arg uses default algorithms", async () => {

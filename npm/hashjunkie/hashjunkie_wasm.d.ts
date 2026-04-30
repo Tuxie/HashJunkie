@@ -7,15 +7,15 @@
  * ```js
  * const h = new WasmHasher(['sha256', 'blake3']);
  * h.update(new Uint8Array([104, 101, 108, 108, 111]));
- * const digests = h.finalize(); // { sha256: '...', blake3: '...' }
+ * const bundle = h.finalize(); // { digests, hexdigests, rawdigests }
  * ```
  */
 export class WasmHasher {
     free(): void;
     [Symbol.dispose](): void;
     /**
-     * Finalize all hashers and return a plain JS object mapping algorithm
-     * name to digest string. Throws if called again after the
+     * Finalize all hashers and return standard, hex, and raw digest maps.
+     * Throws if called again after the
      * first `finalize()`.
      */
     finalize(): any;

@@ -1,7 +1,7 @@
 use rayon::prelude::*;
 use sha2::{Digest, Sha256};
 
-use crate::hashes::Hasher;
+use crate::{DigestValue, hashes::Hasher};
 
 const BLOCK_SIZE: usize = 16 * 1024;
 const PARALLEL_BLOCK_BATCH_SIZE: usize = 1024;
@@ -89,14 +89,18 @@ impl Hasher for Btv2Hasher {
         }
     }
 
-    fn finalize_hex(mut self: Box<Self>) -> String {
+    fn finalize_hex(self: Box<Self>) -> String {
+        self.finalize_digest().standard().to_string()
+    }
+
+    fn finalize_digest(mut self: Box<Self>) -> DigestValue {
         if !self.current_block.is_empty() {
             let block = std::mem::take(&mut self.current_block);
             self.pending_blocks.push(block);
         }
         self.flush_pending_blocks();
 
-        hex::encode(merkle_root(std::mem::take(&mut self.leaf_hashes)))
+        DigestValue::from_raw_hex(merkle_root(std::mem::take(&mut self.leaf_hashes)))
     }
 }
 

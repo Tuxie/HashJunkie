@@ -26,7 +26,7 @@ await Bun.file("video.mp4").stream().pipeThrough(hj).pipeTo(Bun.stdout.writable)
 const { sha256, blake3, md5 } = await hj.digests;
 ```
 
-`HashJunkie` is a [`TransformStream`](https://developer.mozilla.org/en-US/docs/Web/API/TransformStream) — it passes every byte through unchanged while computing hashes in the background. Pipe a readable stream through it to any destination; the `digests` promise resolves once the stream closes.
+`HashJunkie` is a [`TransformStream`](https://developer.mozilla.org/en-US/docs/Web/API/TransformStream) — it passes every byte through unchanged while computing hashes in the background. Pipe a readable stream through it to any destination; the `digests`, `hexdigests`, and `rawdigests` promises resolve once the stream closes.
 
 ```ts
 // Hash a buffer without piping anywhere
@@ -35,6 +35,8 @@ const w = hj.writable.getWriter();
 await w.write(new TextEncoder().encode("hello"));
 await w.close();
 const { sha256 } = await hj.digests;  // lowercase hex string
+const { cidv1 } = await hj.hexdigests; // raw CID bytes as lowercase hex
+const raw = await hj.rawdigests;       // Uint8Array values
 
 // No arguments = the default 18 algorithms at once; add "whirlpool" explicitly when needed
 const hj2 = new HashJunkie();
@@ -76,6 +78,9 @@ hashjunkie -a sha256 *.bin
 # Plain text output
 hashjunkie -f hex file.bin
 
+# Force lowercase hex for algorithms whose standard form is not hex
+hashjunkie --hex -a aich,cidv1 file.bin
+
 # One line per file: hashes in requested order, then size and path
 hashjunkie -f line -a blake3,sha1,md5 *.mp3
 
@@ -109,6 +114,8 @@ af1349b9f5f9a1a6a0... a9993e364706816aba3e25717850c26c9cd0d89d 900150983cd24fb0d
 ```
 
 `line` format prints selected hashes in the order requested with `-a`, followed by file size and path. `-1` prints only the selected hashes, space-separated, for the first input.
+
+`--hex` changes digest display to lowercase hex of the raw digest bytes for every output mode, including JSON, `-f hex`, `-f line`, and `-1`. Without `--hex`, each algorithm uses its standard visual representation.
 
 ### Hash stdin
 
@@ -155,7 +162,7 @@ hashjunkie -f line -a blake3,sha1,md5 *.mp3 |
 | `xxh128` | xxHash 128-bit | 32 hex chars |
 | `xxh3` | xxHash 64-bit | 16 hex chars |
 
-Most digests are lowercase hex strings. `aich` returns the standard uppercase Base32 AICH root used in eD2K links as `h=...`. `btv2` returns the BEP 52 per-file `pieces root`; BEP 52 omits `pieces root` for empty files, so HashJunkie returns the zero Merkle root for standalone empty-file hashing. `cidv0` matches Kubo 0.41 `ipfs add --nocopy --cid-version=0`: single-block files return raw-leaf CIDv1-style `bafk...` strings, while multiblock files return 46-character base58btc DAG-PB roots beginning with `Qm`. `cidv1` returns lowercase base32 CIDv1 strings. `tiger` returns the standard uppercase Base32 Tiger Tree root. The JSON field names match the algorithm names above and are always sorted alphabetically. When no algorithms are specified, HashJunkie computes the default 18 algorithms and skips `whirlpool`; pass `-a whirlpool` or include `"whirlpool"` in the API algorithm list to compute it.
+Most standard digest strings are lowercase hex. `aich` returns the standard uppercase Base32 AICH root used in eD2K links as `h=...`. `btv2` returns the BEP 52 per-file `pieces root`; BEP 52 omits `pieces root` for empty files, so HashJunkie returns the zero Merkle root for standalone empty-file hashing. `cidv0` matches Kubo 0.41 `ipfs add --nocopy --cid-version=0`: single-block files return raw-leaf CIDv1-style `bafk...` strings, while multiblock files return 46-character base58btc DAG-PB roots beginning with `Qm`. `cidv1` returns lowercase base32 CIDv1 strings. `tiger` returns the standard uppercase Base32 Tiger Tree root. The JSON field names match the algorithm names above and are always sorted alphabetically. Use CLI `--hex` or JS `.hexdigests` when you need lowercase hex for the underlying digest bytes. When no algorithms are specified, HashJunkie computes the default 18 algorithms and skips `whirlpool`; pass `-a whirlpool` or include `"whirlpool"` in the API algorithm list to compute it.
 
 The multi-block algorithms (`aich`, `btv2`, `dropbox`, `ed2k`, `hidrive`, `mailru`) produce output compatible with their standard service/client definitions; `dropbox`, `hidrive`, and `mailru` match [rclone](https://rclone.org/)'s `lsjson --hash` command.
 

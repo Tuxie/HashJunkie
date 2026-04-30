@@ -6,6 +6,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 #[cfg(any(feature = "profile-ipfs-cid", test))]
 use std::time::{Duration, Instant};
 
+use crate::{DigestValue, base32_lower_no_padding_multibase};
+
 use super::Hasher;
 
 const CHUNK_SIZE: usize = 262_144;
@@ -167,7 +169,11 @@ impl Hasher for CidHasher {
         }
     }
 
-    fn finalize_hex(mut self: Box<Self>) -> String {
+    fn finalize_hex(self: Box<Self>) -> String {
+        self.finalize_digest().standard().to_string()
+    }
+
+    fn finalize_digest(mut self: Box<Self>) -> DigestValue {
         if !self.current.is_empty() || (self.leaves.is_empty() && self.pending_chunks.is_empty()) {
             let chunk = std::mem::take(&mut self.current);
             self.push_chunk(&chunk);
@@ -183,7 +189,7 @@ impl Hasher for CidHasher {
         };
         #[cfg(any(feature = "profile-ipfs-cid", test))]
         record_profile(ProfilePhase::CidTextEncoding, started);
-        out
+        DigestValue::from_raw_standard(root.cid, out)
     }
 }
 
@@ -262,27 +268,7 @@ fn dag_pb_cid_bytes(block: &[u8], version: CidVersion) -> (Vec<u8>, Vec<u8>) {
 }
 
 fn cid_to_base32(cid: &[u8]) -> String {
-    const ALPHABET: &[u8; 32] = b"abcdefghijklmnopqrstuvwxyz234567";
-    let mut out = String::with_capacity(1 + cid.len() * 8_usize.div_ceil(5));
-    out.push('b');
-
-    let mut value: u16 = 0;
-    let mut bits = 0;
-    for &byte in cid {
-        value = (value << 8) | byte as u16;
-        bits += 8;
-        while bits >= 5 {
-            let idx = ((value >> (bits - 5)) & 0x1f) as usize;
-            out.push(ALPHABET[idx] as char);
-            bits -= 5;
-        }
-    }
-    if bits > 0 {
-        let idx = ((value << (5 - bits)) & 0x1f) as usize;
-        out.push(ALPHABET[idx] as char);
-    }
-
-    out
+    base32_lower_no_padding_multibase(cid)
 }
 
 fn multihash_to_base58btc(multihash: &[u8]) -> String {

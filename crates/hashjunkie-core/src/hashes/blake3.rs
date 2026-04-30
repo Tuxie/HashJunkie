@@ -1,4 +1,4 @@
-use crate::hashes::Hasher;
+use crate::{DigestValue, hashes::Hasher};
 
 const PARALLEL_UPDATE_MIN: usize = 128 * 1024;
 const PARALLEL_UPDATE_BATCH: usize = 16 * 1024 * 1024;
@@ -50,9 +50,13 @@ impl Hasher for Blake3Hasher {
         }
     }
 
-    fn finalize_hex(mut self: Box<Self>) -> String {
+    fn finalize_hex(self: Box<Self>) -> String {
+        self.finalize_digest().standard().to_string()
+    }
+
+    fn finalize_digest(mut self: Box<Self>) -> DigestValue {
         self.flush_pending();
-        hex::encode(self.inner.finalize().as_bytes())
+        DigestValue::from_raw_hex(self.inner.finalize().as_bytes().to_vec())
     }
 }
 

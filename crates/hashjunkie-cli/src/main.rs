@@ -4,7 +4,9 @@ mod output;
 use args::{Args, Format};
 use chrono::{SecondsFormat, Utc};
 use clap::Parser;
-use hashjunkie_core::{Algorithm, MultiHasher, PipelinedHashError, PipelinedMultiHasher};
+use hashjunkie_core::{
+    Algorithm, DigestValue, MultiHasher, PipelinedHashError, PipelinedMultiHasher,
+};
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::{self, Read};
@@ -20,7 +22,7 @@ const _: () = assert!(CHUNK_SIZE >= 128 * 1024);
 fn hash_reader<R: Read>(
     reader: &mut R,
     algorithms: &[Algorithm],
-) -> io::Result<BTreeMap<String, String>> {
+) -> io::Result<BTreeMap<String, DigestValue>> {
     if algorithms.len() > 1 {
         return hash_reader_pipelined(reader, algorithms);
     }
@@ -35,8 +37,8 @@ fn hash_reader<R: Read>(
         hasher.update_parallel(&buf[..n]);
     }
     let mut sorted = BTreeMap::new();
-    for (alg, hex) in hasher.finalize() {
-        sorted.insert(alg.as_str().to_string(), hex);
+    for (alg, digest) in hasher.finalize_digests() {
+        sorted.insert(alg.as_str().to_string(), digest);
     }
     Ok(sorted)
 }
@@ -48,7 +50,7 @@ fn pipeline_error(err: PipelinedHashError) -> io::Error {
 fn hash_reader_pipelined<R: Read>(
     reader: &mut R,
     algorithms: &[Algorithm],
-) -> io::Result<BTreeMap<String, String>> {
+) -> io::Result<BTreeMap<String, DigestValue>> {
     let mut hasher = PipelinedMultiHasher::new(algorithms);
     let mut buf = vec![0u8; CHUNK_SIZE];
     loop {
@@ -60,10 +62,27 @@ fn hash_reader_pipelined<R: Read>(
     }
 
     let mut sorted = BTreeMap::new();
-    for (alg, hex) in hasher.finalize().map_err(pipeline_error)? {
-        sorted.insert(alg.as_str().to_string(), hex);
+    for (alg, digest) in hasher.finalize_digests().map_err(pipeline_error)? {
+        sorted.insert(alg.as_str().to_string(), digest);
     }
     Ok(sorted)
+}
+
+fn display_digest_map(
+    digests: &BTreeMap<String, DigestValue>,
+    hex: bool,
+) -> BTreeMap<String, String> {
+    digests
+        .iter()
+        .map(|(alg, digest)| {
+            let display = if hex {
+                digest.hex()
+            } else {
+                digest.standard().to_string()
+            };
+            (alg.clone(), display)
+        })
+        .collect()
 }
 
 struct CountingReader<R> {
@@ -105,9 +124,11 @@ fn run_reader<R: Read>(
     algorithms: &[Algorithm],
     format: &Format,
     hashes_only: bool,
+    hex: bool,
 ) -> i32 {
     match hash_reader(reader, algorithms) {
         Ok(digests) => {
+            let digests = display_digest_map(&digests, hex);
             let out = if hashes_only {
                 output::format_as_hashes_only(algorithms, &digests)
             } else {
@@ -127,17 +148,18 @@ fn run_reader<R: Read>(
     }
 }
 
-fn run_stdin(algorithms: &[Algorithm], format: &Format, hashes_only: bool) -> i32 {
+fn run_stdin(algorithms: &[Algorithm], format: &Format, hashes_only: bool, hex: bool) -> i32 {
     if hashes_only {
-        return run_reader(&mut io::stdin(), algorithms, format, true);
+        return run_reader(&mut io::stdin(), algorithms, format, true, hex);
     }
 
     match format {
-        Format::Hex => run_reader(&mut io::stdin(), algorithms, format, false),
+        Format::Hex => run_reader(&mut io::stdin(), algorithms, format, false, hex),
         Format::Json => {
             let mut reader = CountingReader::new(io::stdin());
             match hash_reader(&mut reader, algorithms) {
                 Ok(digests) => {
+                    let digests = display_digest_map(&digests, hex);
                     let entry = output::FileJsonEntry {
                         path: "-",
                         name: "-",
@@ -158,6 +180,7 @@ fn run_stdin(algorithms: &[Algorithm], format: &Format, hashes_only: bool) -> i3
             let mut reader = CountingReader::new(io::stdin());
             match hash_reader(&mut reader, algorithms) {
                 Ok(digests) => {
+                    let digests = display_digest_map(&digests, hex);
                     println!(
                         "{}",
                         output::format_as_file_line(algorithms, "-", reader.bytes_read, &digests)
@@ -178,6 +201,7 @@ fn run_files(
     files: &[String],
     format: &Format,
     hashes_only: bool,
+    hex: bool,
 ) -> i32 {
     let mut results: Vec<(String, BTreeMap<String, String>)> = Vec::new();
     let mut json_metadata: Vec<(String, u64, String)> = Vec::new();
@@ -190,6 +214,7 @@ fn run_files(
                 Ok(modified) => match File::open(path) {
                     Ok(mut f) => match hash_reader(&mut f, algorithms) {
                         Ok(digests) => {
+                            let digests = display_digest_map(&digests, hex);
                             if matches!(format, Format::Json) {
                                 json_metadata.push((
                                     file_name_for_path(path).to_string(),
@@ -284,9 +309,15 @@ fn main() {
     };
 
     let code = if args.files.is_empty() {
-        run_stdin(&algorithms, &args.format, args.hashes_only)
+        run_stdin(&algorithms, &args.format, args.hashes_only, args.hex)
     } else {
-        run_files(&algorithms, &args.files, &args.format, args.hashes_only)
+        run_files(
+            &algorithms,
+            &args.files,
+            &args.format,
+            args.hashes_only,
+            args.hex,
+        )
     };
 
     process::exit(code);
@@ -327,7 +358,7 @@ mod tests {
         let mut hasher = MultiHasher::new(&algs);
         hasher.update(&data);
         let expected = hasher
-            .finalize()
+            .finalize_digests()
             .into_iter()
             .map(|(alg, digest)| (alg.as_str().to_string(), digest))
             .collect();
@@ -338,7 +369,7 @@ mod tests {
     #[test]
     fn run_reader_returns_1_on_read_error() {
         let algs = [Algorithm::Sha256];
-        let code = run_reader(&mut ErrorReader, &algs, &Format::Json, false);
+        let code = run_reader(&mut ErrorReader, &algs, &Format::Json, false, false);
         assert_eq!(code, 1);
     }
 }

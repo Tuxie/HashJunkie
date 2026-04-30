@@ -1,10 +1,10 @@
-import type { Algorithm, Backend, Digests, FileBackend } from "./types";
+import type { Algorithm, Backend, DigestBundle, Digests, FileBackend } from "./types";
 import { makeWasmBackend } from "./wasm";
 
 /** Shape of the NativeHasher class exported by @perw/hashjunkie-* platform packages. */
 type NativeHasherInstance = {
   update(data: Buffer): void;
-  finalize(): Record<string, string>;
+  finalize(): DigestBundle;
 };
 
 type NativeAddon = {
@@ -104,9 +104,9 @@ export function loadBackend(algorithms: Algorithm[]): Backend {
       update(data: Uint8Array): void {
         inst.update(bufferView(data));
       },
-      finalize(): Digests {
-        // Trust assertion: the Rust layer always returns exactly the 13 Algorithm keys
-        return inst.finalize() as Digests;
+      finalize(): DigestBundle {
+        // Trust assertion: the Rust layer always returns exactly the requested Algorithm keys.
+        return inst.finalize();
       },
     };
   }
@@ -160,7 +160,7 @@ export function loadFileBackend(): FileBackend {
       } finally {
         reader.releaseLock();
       }
-      return backend.finalize();
+      return backend.finalize().digests;
     },
   };
 }

@@ -17,63 +17,63 @@ const EMPTY_MD5 = "d41d8cd98f00b204e9800998ecf8427e";
 test("makeWasmBackend: sha256 of 'abc' matches known value", () => {
   const backend = makeWasmBackend(["sha256"]);
   backend.update(new TextEncoder().encode("abc"));
-  const digests = backend.finalize();
+  const { digests } = backend.finalize();
   expect(digests.sha256).toBe(ABC_SHA256);
 });
 
 test("makeWasmBackend: aich of 'abc' matches eMule AICH single-block root", () => {
   const backend = makeWasmBackend(["aich"]);
   backend.update(new TextEncoder().encode("abc"));
-  const digests = backend.finalize();
+  const { digests } = backend.finalize();
   expect(digests.aich).toBe(ABC_AICH);
 });
 
 test("makeWasmBackend: btv2 of 'abc' matches BEP 52 single-block pieces root", () => {
   const backend = makeWasmBackend(["btv2"]);
   backend.update(new TextEncoder().encode("abc"));
-  const digests = backend.finalize();
+  const { digests } = backend.finalize();
   expect(digests.btv2).toBe(ABC_BTV2);
 });
 
 test("makeWasmBackend: md5 of empty input matches known value", () => {
   const backend = makeWasmBackend(["md5"]);
   backend.update(new Uint8Array(0));
-  const digests = backend.finalize();
+  const { digests } = backend.finalize();
   expect(digests.md5).toBe(EMPTY_MD5);
 });
 
 test("makeWasmBackend: ed2k of 'abc' matches known MD4-compatible value", () => {
   const backend = makeWasmBackend(["ed2k"]);
   backend.update(new TextEncoder().encode("abc"));
-  const digests = backend.finalize();
+  const { digests } = backend.finalize();
   expect(digests.ed2k).toBe(ABC_ED2K);
 });
 
 test("makeWasmBackend: tiger of empty input matches known Gnutella Tiger", () => {
   const backend = makeWasmBackend(["tiger"]);
   backend.update(new Uint8Array(0));
-  const digests = backend.finalize();
+  const { digests } = backend.finalize();
   expect(digests.tiger).toBe(EMPTY_TIGER);
 });
 
 test("makeWasmBackend: cidv1 of 'abc' matches raw-leaf IPFS CID", () => {
   const backend = makeWasmBackend(["cidv1"]);
   backend.update(new TextEncoder().encode("abc"));
-  const digests = backend.finalize();
+  const { digests } = backend.finalize();
   expect(digests.cidv1).toBe(ABC_CIDV1);
 });
 
 test("makeWasmBackend: cidv0 of 'abc' matches Kubo nocopy raw-leaf CID", () => {
   const backend = makeWasmBackend(["cidv0"]);
   backend.update(new TextEncoder().encode("abc"));
-  const digests = backend.finalize();
+  const { digests } = backend.finalize();
   expect(digests.cidv0).toBe(ABC_CIDV0);
 });
 
 test("makeWasmBackend: cidv0 and cidv1 match Kubo for multi-chunk input", () => {
   const backend = makeWasmBackend(["cidv0", "cidv1"]);
   backend.update(new Uint8Array(262_145));
-  const digests = backend.finalize();
+  const { digests } = backend.finalize();
   expect(digests.cidv0).toBe(ZEROES_MULTI_CIDV0);
   expect(digests.cidv1).toBe(ZEROES_MULTI_CIDV1);
 });
@@ -81,12 +81,12 @@ test("makeWasmBackend: cidv0 and cidv1 match Kubo for multi-chunk input", () => 
 test("makeWasmBackend: multi-chunk update matches single-chunk", () => {
   const single = makeWasmBackend(["sha256"]);
   single.update(new TextEncoder().encode("hello world"));
-  const singleDigests = single.finalize();
+  const { digests: singleDigests } = single.finalize();
 
   const multi = makeWasmBackend(["sha256"]);
   multi.update(new TextEncoder().encode("hello"));
   multi.update(new TextEncoder().encode(" world"));
-  const multiDigests = multi.finalize();
+  const { digests: multiDigests } = multi.finalize();
 
   expect(multiDigests.sha256).toBe(singleDigests.sha256);
 });
@@ -97,7 +97,20 @@ test("makeWasmBackend: WASM init is idempotent (calling twice is safe)", () => {
   const backend = makeWasmBackend(["sha256"]);
   backend.update(new Uint8Array([0x61])); // 'a'
   // SHA-256("a") — verified via sha256sum.
-  expect(backend.finalize().sha256).toBe(
+  expect(backend.finalize().digests.sha256).toBe(
     "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb",
   );
+});
+
+test("makeWasmBackend: finalize exposes standard, hex, and raw maps", () => {
+  const backend = makeWasmBackend(["aich", "cidv1"]);
+  backend.update(new TextEncoder().encode("abc"));
+  const bundle = backend.finalize();
+  expect(bundle.digests.aich).toBe(ABC_AICH);
+  expect(bundle.hexdigests.aich).toBe("a9993e364706816aba3e25717850c26c9cd0d89d");
+  expect(bundle.hexdigests.cidv1).toBe(
+    "01551220ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+  );
+  expect(bundle.rawdigests.aich).toBeInstanceOf(Uint8Array);
+  expect(bundle.rawdigests.aich).toHaveLength(20);
 });

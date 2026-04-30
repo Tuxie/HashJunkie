@@ -88,6 +88,29 @@ fn stdin_with_single_algorithm_outputs_only_that_algorithm() {
 }
 
 #[test]
+fn stdin_hex_flag_outputs_raw_digest_bytes_as_lowercase_hex() {
+    let output = run_with_stdin(&["--hex", "-a", "cidv1"], b"abc");
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim()).unwrap();
+    assert_eq!(
+        parsed["Hashes"]["cidv1"],
+        "01551220ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+    );
+}
+
+#[test]
+fn hashes_only_hex_flag_uses_requested_order() {
+    let output = run_with_stdin(&["-1", "--hex", "-a", "aich,cidv1"], b"abc");
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert_eq!(
+        stdout.trim_end(),
+        "a9993e364706816aba3e25717850c26c9cd0d89d 01551220ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+    );
+}
+
+#[test]
 fn stdin_with_two_algorithms_json_output_is_sorted() {
     let output = run_with_stdin(&["-a", "sha256,md5"], b"abc");
     assert!(output.status.success());

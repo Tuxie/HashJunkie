@@ -8,7 +8,9 @@ use napi::bindgen_prelude::{AsyncTask, Buffer};
 use napi::{Env, Task};
 use napi_derive::napi;
 
-use hashjunkie_core::{Algorithm, MultiHasher, PipelinedHashError, PipelinedMultiHasher};
+use hashjunkie_core::{
+    Algorithm, DigestValue, MultiHasher, PipelinedHashError, PipelinedMultiHasher,
+};
 
 const FILE_BUFFER_SIZE: usize = 16 * 1024 * 1024;
 
@@ -37,6 +39,32 @@ fn digest_map(digests: HashMap<Algorithm, String>) -> HashMap<String, String> {
         .into_iter()
         .map(|(alg, digest)| (alg.as_str().to_string(), digest))
         .collect()
+}
+
+#[napi(object)]
+pub struct DigestBundle {
+    pub digests: HashMap<String, String>,
+    pub hexdigests: HashMap<String, String>,
+    pub rawdigests: HashMap<String, Buffer>,
+}
+
+fn digest_bundle(digests: HashMap<Algorithm, DigestValue>) -> DigestBundle {
+    let mut standard = HashMap::new();
+    let mut hex = HashMap::new();
+    let mut raw = HashMap::new();
+
+    for (alg, digest) in digests {
+        let name = alg.as_str().to_string();
+        standard.insert(name.clone(), digest.standard().to_string());
+        hex.insert(name.clone(), digest.hex());
+        raw.insert(name, Buffer::from(digest.into_raw()));
+    }
+
+    DigestBundle {
+        digests: standard,
+        hexdigests: hex,
+        rawdigests: raw,
+    }
 }
 
 fn io_error(path: &str, err: std::io::Error) -> napi::Error {
@@ -116,10 +144,18 @@ impl StreamingHasher {
         }
     }
 
+    #[cfg(test)]
     fn finalize(self) -> napi::Result<HashMap<Algorithm, String>> {
         match self {
             Self::Direct(hasher) => Ok(hasher.finalize()),
             Self::Pipelined(hasher) => hasher.finalize().map_err(pipeline_error),
+        }
+    }
+
+    fn finalize_digests(self) -> napi::Result<HashMap<Algorithm, DigestValue>> {
+        match self {
+            Self::Direct(hasher) => Ok(hasher.finalize_digests()),
+            Self::Pipelined(hasher) => hasher.finalize_digests().map_err(pipeline_error),
         }
     }
 }
@@ -232,6 +268,27 @@ mod tests {
 
         assert_eq!(streaming.finalize().unwrap(), direct.finalize());
     }
+
+    #[test]
+    fn streaming_hasher_exposes_standard_hex_and_raw_digests() {
+        let mut streaming = StreamingHasher::new(&[Algorithm::CidV1, Algorithm::Aich]);
+        streaming.update(b"abc").unwrap();
+        let bundle = digest_bundle(streaming.finalize_digests().unwrap());
+
+        assert_eq!(
+            bundle.digests[Algorithm::CidV1.as_str()],
+            "bafkreif2pall7dybz7vecqka3zo24irdwabwdi4wc55jznaq75q7eaavvu"
+        );
+        assert_eq!(
+            bundle.hexdigests[Algorithm::CidV1.as_str()],
+            "01551220ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
+        assert_eq!(
+            bundle.hexdigests[Algorithm::Aich.as_str()],
+            "a9993e364706816aba3e25717850c26c9cd0d89d"
+        );
+        assert_eq!(bundle.rawdigests[Algorithm::Aich.as_str()].len(), 20);
+    }
 }
 
 /// A streaming multi-algorithm hasher exposed as a Node.js native class.
@@ -239,7 +296,7 @@ mod tests {
 /// ```js
 /// const h = new NativeHasher(['sha256', 'blake3']);
 /// h.update(Buffer.from('hello'));
-/// const digests = h.finalize(); // { sha256: '...', blake3: '...' }
+/// const bundle = h.finalize(); // { digests, hexdigests, rawdigests }
 /// ```
 #[napi]
 pub struct NativeHasher {
@@ -271,16 +328,16 @@ impl NativeHasher {
         Ok(())
     }
 
-    /// Finalize all hashers and return a plain JS object mapping algorithm
-    /// name to digest string. After this call, `update()` and
+    /// Finalize all hashers and return standard, hex, and raw digest maps.
+    /// After this call, `update()` and
     /// `finalize()` will throw if called again.
     #[napi]
-    pub fn finalize(&mut self) -> napi::Result<HashMap<String, String>> {
+    pub fn finalize(&mut self) -> napi::Result<DigestBundle> {
         let inner = self
             .inner
             .take()
             .ok_or_else(|| napi::Error::from_reason("hasher already finalized"))?;
-        Ok(digest_map(inner.finalize()?))
+        Ok(digest_bundle(inner.finalize_digests()?))
     }
 }
 

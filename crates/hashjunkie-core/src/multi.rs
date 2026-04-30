@@ -6,8 +6,8 @@ use std::time::Duration;
 
 use rayon::prelude::*;
 
-use crate::Algorithm;
 use crate::hashes::{self, Hasher};
+use crate::{Algorithm, DigestValue};
 
 const PARALLEL_UPDATE_MIN: usize = 128 * 1024;
 const PIPELINE_QUEUE_DEPTH: usize = 2;
@@ -40,7 +40,7 @@ pub struct PipelinedMultiHasher {
 
 struct WorkerResult {
     algorithm: Algorithm,
-    digest: String,
+    digest: DigestValue,
     elapsed: Duration,
 }
 
@@ -82,7 +82,9 @@ impl PipelinedMultiHasher {
         Ok(())
     }
 
-    pub fn finalize(mut self) -> Result<HashMap<Algorithm, String>, PipelinedHashError> {
+    pub fn finalize_digests(
+        mut self,
+    ) -> Result<HashMap<Algorithm, DigestValue>, PipelinedHashError> {
         self.senders.take();
 
         let mut digests = HashMap::new();
@@ -102,6 +104,14 @@ impl PipelinedMultiHasher {
 
         Ok(digests)
     }
+
+    pub fn finalize(self) -> Result<HashMap<Algorithm, String>, PipelinedHashError> {
+        let values = self.finalize_digests()?;
+        Ok(values
+            .into_iter()
+            .map(|(alg, digest)| (alg, digest.standard().to_string()))
+            .collect())
+    }
 }
 
 fn hash_one_algorithm(algorithm: Algorithm, chunks: mpsc::Receiver<Arc<[u8]>>) -> WorkerResult {
@@ -113,7 +123,7 @@ fn hash_one_algorithm(algorithm: Algorithm, chunks: mpsc::Receiver<Arc<[u8]>>) -
         elapsed += started.elapsed();
     }
 
-    let mut digests = hasher.finalize();
+    let mut digests = hasher.finalize_digests();
     let digest = digests
         .remove(&algorithm)
         .expect("single-algorithm hasher returns its digest");
@@ -157,9 +167,16 @@ impl MultiHasher {
     }
 
     pub fn finalize(self) -> HashMap<Algorithm, String> {
+        self.finalize_digests()
+            .into_iter()
+            .map(|(alg, digest)| (alg, digest.standard().to_string()))
+            .collect()
+    }
+
+    pub fn finalize_digests(self) -> HashMap<Algorithm, DigestValue> {
         self.pairs
             .into_iter()
-            .map(|(alg, hasher)| (alg, hasher.finalize_hex()))
+            .map(|(alg, hasher)| (alg, hasher.finalize_digest()))
             .collect()
     }
 }
@@ -243,6 +260,35 @@ mod tests {
         assert_eq!(
             digests[&Algorithm::Sha256],
             "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
+    }
+
+    #[test]
+    fn finalize_digests_exposes_raw_hex_and_standard_text() {
+        let mut h = MultiHasher::new(&[Algorithm::Sha256, Algorithm::Aich, Algorithm::CidV1]);
+        h.update(b"abc");
+        let digests = h.finalize_digests();
+
+        assert_eq!(
+            digests[&Algorithm::Sha256].raw(),
+            &hex::decode("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
+                .unwrap()
+        );
+        assert_eq!(
+            digests[&Algorithm::Aich].standard(),
+            "VGMT4NSHA2AWVOR6EVYXQUGCNSONBWE5"
+        );
+        assert_eq!(
+            digests[&Algorithm::Aich].hex(),
+            "a9993e364706816aba3e25717850c26c9cd0d89d"
+        );
+        assert_eq!(
+            digests[&Algorithm::CidV1].standard(),
+            "bafkreif2pall7dybz7vecqka3zo24irdwabwdi4wc55jznaq75q7eaavvu"
+        );
+        assert_eq!(
+            digests[&Algorithm::CidV1].hex(),
+            "01551220ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
         );
     }
 

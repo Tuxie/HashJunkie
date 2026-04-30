@@ -18,6 +18,10 @@ pub struct Args {
     /// Print only space-separated hashes for the first input
     #[arg(short = '1')]
     pub hashes_only: bool,
+
+    /// Display digest bytes as lowercase hex instead of each algorithm's standard text form
+    #[arg(long = "hex")]
+    pub hex: bool,
 }
 
 impl Args {
@@ -99,5 +103,12 @@ mod tests {
         let args = Args::parse_from(["hashjunkie", "-1a", "blake3"]);
         assert!(args.hashes_only);
         assert_eq!(args.resolved_algorithms().unwrap(), vec![Algorithm::Blake3]);
+    }
+
+    #[test]
+    fn parses_hex_display_flag() {
+        let args = Args::parse_from(["hashjunkie", "--hex", "-a", "cidv1"]);
+        assert!(args.hex);
+        assert_eq!(args.resolved_algorithms().unwrap(), vec![Algorithm::CidV1]);
     }
 }

@@ -9,7 +9,7 @@ import {
   loadBackend,
   loadFileBackend,
 } from "./loader";
-import type { Digests } from "./types";
+import type { DigestBundle, Digests } from "./types";
 
 const MOCK_DIGESTS: Digests = {
   aich: "a9",
@@ -31,6 +31,16 @@ const MOCK_DIGESTS: Digests = {
   whirlpool: "66",
   xxh128: "77",
   xxh3: "88",
+};
+
+const MOCK_BUNDLE: DigestBundle = {
+  digests: MOCK_DIGESTS,
+  hexdigests: Object.fromEntries(
+    Object.keys(MOCK_DIGESTS).map((key) => [key, "00"]),
+  ) as DigestBundle["hexdigests"],
+  rawdigests: Object.fromEntries(
+    Object.keys(MOCK_DIGESTS).map((key) => [key, new Uint8Array([0])]),
+  ) as DigestBundle["rawdigests"],
 };
 
 afterEach(() => {
@@ -126,7 +136,7 @@ test("_defaultLoadWasm returns a working WASM backend", () => {
   expect(backend).not.toBeNull();
   if (backend === null) throw new Error("expected non-null backend");
   backend.update(new TextEncoder().encode("abc"));
-  expect(backend.finalize().sha256).toBe(
+  expect(backend.finalize().digests.sha256).toBe(
     "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
   );
 });
@@ -145,8 +155,8 @@ test("loadBackend returns a backend that delegates update() and finalize() to th
         update(data: Buffer): void {
           updateCalls.push(data);
         }
-        finalize(): Record<string, string> {
-          return MOCK_DIGESTS;
+        finalize(): DigestBundle {
+          return MOCK_BUNDLE;
         }
       },
     }),
@@ -161,7 +171,7 @@ test("loadBackend returns a backend that delegates update() and finalize() to th
   const firstCall = updateCalls[0];
   expect(firstCall).toBeInstanceOf(Buffer);
   expect(Array.from(firstCall ?? [])).toEqual([0xde, 0xad, 0xbe, 0xef]);
-  expect(backend.finalize()).toEqual(MOCK_DIGESTS);
+  expect(backend.finalize()).toEqual(MOCK_BUNDLE);
 });
 
 test("loadBackend passes a Buffer view to native update", () => {
@@ -172,8 +182,8 @@ test("loadBackend passes a Buffer view to native update", () => {
         update(data: Buffer): void {
           received = data;
         }
-        finalize(): Record<string, string> {
-          return MOCK_DIGESTS;
+        finalize(): DigestBundle {
+          return MOCK_BUNDLE;
         }
       },
     }),
@@ -192,8 +202,8 @@ test("loadBackend preserves Uint8Array byteOffset and byteLength for native upda
         update(data: Buffer): void {
           received = data;
         }
-        finalize(): Record<string, string> {
-          return MOCK_DIGESTS;
+        finalize(): DigestBundle {
+          return MOCK_BUNDLE;
         }
       },
     }),
@@ -215,8 +225,8 @@ test("loadBackend forwards algorithm list to NativeHasher constructor", () => {
           receivedAlgorithms = algorithms;
         }
         update(_data: Buffer): void {}
-        finalize(): Record<string, string> {
-          return MOCK_DIGESTS;
+        finalize(): DigestBundle {
+          return MOCK_BUNDLE;
         }
       },
     }),
@@ -232,8 +242,8 @@ test("loadBackend forwards algorithm list to NativeHasher constructor", () => {
 test("loadBackend uses WASM backend when native returns null", () => {
   const mockWasm = {
     update(_data: Uint8Array): void {},
-    finalize(): Digests {
-      return MOCK_DIGESTS;
+    finalize(): DigestBundle {
+      return MOCK_BUNDLE;
     },
   };
   _setLoaders({ loadNative: () => null, loadWasm: () => mockWasm });
@@ -258,8 +268,8 @@ test("loadFileBackend delegates hashFile() to the native addon", async () => {
     loadNative: () => ({
       NativeHasher: class {
         update(_data: Buffer): void {}
-        finalize(): Record<string, string> {
-          return MOCK_DIGESTS;
+        finalize(): DigestBundle {
+          return MOCK_BUNDLE;
         }
       },
       async hashFile(path: string, algorithms: string[]): Promise<Record<string, string>> {
@@ -282,8 +292,8 @@ test("loadFileBackend falls back to hashing Bun.file(path).stream() when native 
     loadNative: () => null,
     loadWasm: () => ({
       update(_data: Uint8Array): void {},
-      finalize(): Digests {
-        return MOCK_DIGESTS;
+      finalize(): DigestBundle {
+        return MOCK_BUNDLE;
       },
     }),
   });
@@ -306,8 +316,8 @@ test("loadFileBackend throws when native file hashing and Bun.file fallback are 
     loadBunFile: () => null,
     loadWasm: () => ({
       update(_data: Uint8Array): void {},
-      finalize(): Digests {
-        return MOCK_DIGESTS;
+      finalize(): DigestBundle {
+        return MOCK_BUNDLE;
       },
     }),
   });

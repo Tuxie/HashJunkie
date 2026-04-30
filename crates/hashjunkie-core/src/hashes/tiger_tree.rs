@@ -1,10 +1,9 @@
 use digest::Digest;
 
-use crate::hashes::Hasher;
+use crate::{DigestValue, base32_upper_no_padding, hashes::Hasher};
 
 const LEAF_SIZE: usize = 1024;
 const TIGER_DIGEST_SIZE: usize = 24;
-const BASE32: &[u8; 32] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
 pub struct TigerTreeHasher {
     leaves: Vec<[u8; TIGER_DIGEST_SIZE]>,
@@ -49,7 +48,11 @@ impl Hasher for TigerTreeHasher {
         }
     }
 
-    fn finalize_hex(mut self: Box<Self>) -> String {
+    fn finalize_hex(self: Box<Self>) -> String {
+        self.finalize_digest().standard().to_string()
+    }
+
+    fn finalize_digest(mut self: Box<Self>) -> DigestValue {
         if self.leaves.is_empty() || !self.current_leaf.is_empty() {
             self.push_current_leaf();
         }
@@ -68,7 +71,7 @@ impl Hasher for TigerTreeHasher {
                 .collect();
         }
 
-        base32_no_padding(&level[0])
+        DigestValue::from_raw_standard(level[0], base32_upper_no_padding(&level[0]))
     }
 }
 
@@ -85,31 +88,6 @@ fn tiger_node(left: &[u8; TIGER_DIGEST_SIZE], right: &[u8; TIGER_DIGEST_SIZE]) -
     tiger.update(left);
     tiger.update(right);
     tiger.finalize().into()
-}
-
-fn base32_no_padding(data: &[u8]) -> String {
-    let mut out = String::with_capacity((data.len() * 8).div_ceil(5));
-    let mut buffer = 0u16;
-    let mut bits = 0u8;
-
-    for byte in data {
-        buffer = (buffer << 8) | u16::from(*byte);
-        bits += 8;
-        while bits >= 5 {
-            let shift = bits - 5;
-            let index = ((buffer >> shift) & 0x1f) as usize;
-            out.push(BASE32[index] as char);
-            bits -= 5;
-            buffer &= (1 << bits) - 1;
-        }
-    }
-
-    if bits > 0 {
-        let index = ((buffer << (5 - bits)) & 0x1f) as usize;
-        out.push(BASE32[index] as char);
-    }
-
-    out
 }
 
 #[cfg(test)]
@@ -144,7 +122,7 @@ mod tests {
 
     #[test]
     fn single_leaf_hash_is_base32_tiger_of_prefixed_data() {
-        assert_eq!(hash(b"abc"), base32_no_padding(&tiger_leaf(b"abc")));
+        assert_eq!(hash(b"abc"), base32_upper_no_padding(&tiger_leaf(b"abc")));
     }
 
     #[test]
@@ -170,7 +148,10 @@ mod tests {
         let left = tiger_leaf(&data[..LEAF_SIZE]);
         let right = tiger_leaf(&data[LEAF_SIZE..]);
 
-        assert_eq!(hash(&data), base32_no_padding(&tiger_node(&left, &right)));
+        assert_eq!(
+            hash(&data),
+            base32_upper_no_padding(&tiger_node(&left, &right))
+        );
     }
 
     #[test]

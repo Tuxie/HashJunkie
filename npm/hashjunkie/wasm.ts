@@ -1,5 +1,5 @@
 import { initSync, WasmHasher } from "./hashjunkie_wasm.js";
-import type { Algorithm, Backend, Digests } from "./types";
+import type { Algorithm, Backend, DigestBundle } from "./types";
 import { WASM_BLOB } from "./wasm_blob";
 
 let initialized = false;
@@ -20,11 +20,11 @@ export function makeWasmBackend(algorithms: Algorithm[]): Backend {
     update(data: Uint8Array): void {
       hasher.update(data);
     },
-    finalize(): Digests {
+    finalize(): DigestBundle {
       // Trust assertion: WasmHasher.finalize() returns exactly the requested
-      // algorithm keys mapping to digest strings — same guarantee as
+      // algorithm keys in standard, hex, and raw maps — same guarantee as
       // the Rust MultiHasher it wraps.
-      const result = hasher.finalize() as Digests;
+      const result = hasher.finalize() as DigestBundle;
       // Free the WASM heap allocation — wasm-bindgen does not GC automatically.
       hasher.free();
       return result;

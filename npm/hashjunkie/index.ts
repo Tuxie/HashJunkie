@@ -1,9 +1,9 @@
 import { loadBackend, loadFileBackend } from "./loader";
-import type { Algorithm, Digests } from "./types";
+import type { Algorithm, DigestBundle, Digests, HexDigests, RawDigests } from "./types";
 import { parseAlgorithms } from "./types";
 
 export { ALGORITHMS, DEFAULT_ALGORITHMS } from "./types";
-export type { Algorithm, Digests };
+export type { Algorithm, DigestBundle, Digests, HexDigests, RawDigests };
 
 /**
  * TransformStream that computes hashes on every byte that flows through it.
@@ -15,15 +15,19 @@ export type { Algorithm, Digests };
 export class HashJunkie extends TransformStream<Uint8Array, Uint8Array> {
   /** Resolves with all requested digests when the stream closes cleanly. Rejects on error. */
   readonly digests: Promise<Digests>;
+  /** Resolves with all requested digest bytes displayed as lowercase hex. */
+  readonly hexdigests: Promise<HexDigests>;
+  /** Resolves with all requested raw digest bytes. */
+  readonly rawdigests: Promise<RawDigests>;
 
   constructor(algorithms?: Algorithm[]) {
     // Validate algorithm list synchronously before any IO — fast fail with a clear TypeError.
     const algs = parseAlgorithms(algorithms);
 
-    let resolveDigests!: (d: Digests) => void;
+    let resolveBundle!: (d: DigestBundle) => void;
     let rejectDigests!: (e: unknown) => void;
-    const digests = new Promise<Digests>((resolve, reject) => {
-      resolveDigests = resolve;
+    const bundle = new Promise<DigestBundle>((resolve, reject) => {
+      resolveBundle = resolve;
       rejectDigests = reject;
     });
 
@@ -44,7 +48,7 @@ export class HashJunkie extends TransformStream<Uint8Array, Uint8Array> {
           // Note: if finalize() threw, TransformStream would error the readable side,
           // but digests would hang. finalize() is infallible (pure state computation),
           // so this is an accepted known limitation.
-          resolveDigests(backend.finalize());
+          resolveBundle(backend.finalize());
         },
       },
       // writableStrategy: default is fine — callers pace their own writes.
@@ -57,7 +61,11 @@ export class HashJunkie extends TransformStream<Uint8Array, Uint8Array> {
       { highWaterMark: Number.POSITIVE_INFINITY },
     );
 
-    this.digests = digests;
+    this.digests = bundle.then((result) => result.digests);
+    this.hexdigests = bundle.then((result) => result.hexdigests);
+    this.rawdigests = bundle.then((result) => result.rawdigests);
+    this.hexdigests.catch(() => {});
+    this.rawdigests.catch(() => {});
 
     // Intercept writable.abort() to reject the digests promise when the stream is aborted.
     // writable.closed is not implemented in Bun, so we patch the abort method instead.

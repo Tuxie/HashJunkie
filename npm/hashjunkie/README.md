@@ -54,6 +54,8 @@ import { HashJunkie, hashBuffer, hashFile, hashStream } from "@perw/hashjunkie";
 const hj = new HashJunkie(["sha256", "md5"]);
 await source.pipeThrough(hj).pipeTo(dest);
 const { sha256, md5 } = await hj.digests;
+const { sha256: sha256Hex } = await hj.hexdigests;
+const { sha256: sha256Bytes } = await hj.rawdigests;
 
 // 2. In-memory buffer → digests, no plumbing.
 const digests = await hashBuffer(new TextEncoder().encode("hello world"));
@@ -70,7 +72,9 @@ console.log(ALGORITHMS); // readonly ["blake3", "crc32", ...]
 console.log(DEFAULT_ALGORITHMS); // same list without "whirlpool"
 ```
 
-Most digests are lowercase hex strings. `aich` returns the standard uppercase Base32 AICH root used in eD2K links as `h=...`. `btv2` returns the BEP 52 per-file `pieces root` as lowercase hex; BEP 52 omits `pieces root` for empty files, so HashJunkie returns the zero Merkle root for standalone empty-file hashing. `cidv0` matches Kubo 0.41 `ipfs add --nocopy --cid-version=0`: single-block files return raw-leaf CIDv1-style `bafk...` strings, while multiblock files return 46-character base58btc DAG-PB roots beginning with `Qm`. `cidv1` returns lowercase base32 CIDv1 strings. `tiger` returns the standard uppercase Base32 Tiger Tree root. The `digests` promise resolves when the writable side closes cleanly, and rejects if the stream is aborted.
+Most standard digest strings are lowercase hex. `aich` returns the standard uppercase Base32 AICH root used in eD2K links as `h=...`. `btv2` returns the BEP 52 per-file `pieces root` as lowercase hex; BEP 52 omits `pieces root` for empty files, so HashJunkie returns the zero Merkle root for standalone empty-file hashing. `cidv0` matches Kubo 0.41 `ipfs add --nocopy --cid-version=0`: single-block files return raw-leaf CIDv1-style `bafk...` strings, while multiblock files return 46-character base58btc DAG-PB roots beginning with `Qm`. `cidv1` returns lowercase base32 CIDv1 strings. `tiger` returns the standard uppercase Base32 Tiger Tree root.
+
+Use `hj.digests` for each algorithm's standard visual representation, `hj.hexdigests` for lowercase hex of the raw digest bytes, and `hj.rawdigests` for `Uint8Array` values. The promises resolve when the writable side closes cleanly and reject if the stream is aborted.
 
 ## Best practices
 
@@ -94,6 +98,8 @@ import { HashJunkie } from "@perw/hashjunkie";
 const hasher = new HashJunkie(["blake3", "sha256"]);
 await Bun.file("clip.mov").stream().pipeThrough(hasher).pipeTo(uploadBody);
 const digests = await hasher.digests;
+const hexDigests = await hasher.hexdigests;
+const rawDigests = await hasher.rawdigests;
 ```
 
 Use `hashStream()` when you have a stream and only want the digests. When you control the producer, feed multi-MiB `Uint8Array` chunks so the native backend can keep worker threads busy:
@@ -121,7 +127,7 @@ On an M2 MacBook Pro, hashing a 1 GiB file with all pre-CID algorithms simultane
 ## Types
 
 ```ts
-import type { Algorithm, Digests } from "@perw/hashjunkie";
+import type { Algorithm, Digests, HexDigests, RawDigests } from "@perw/hashjunkie";
 ```
 
 ```ts
@@ -131,10 +137,14 @@ type Algorithm =
   | "tiger" | "whirlpool" | "xxh128" | "xxh3";
 
 type Digests = Record<Algorithm, string>;
+type HexDigests = Record<Algorithm, string>;
+type RawDigests = Record<Algorithm, Uint8Array>;
 
 class HashJunkie extends TransformStream<Uint8Array, Uint8Array> {
   constructor(algorithms?: Algorithm[]);
   readonly digests: Promise<Digests>;
+  readonly hexdigests: Promise<HexDigests>;
+  readonly rawdigests: Promise<RawDigests>;
 }
 
 function hashBuffer(data: Uint8Array, algorithms?: Algorithm[]): Promise<Digests>;

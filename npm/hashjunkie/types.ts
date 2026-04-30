@@ -25,13 +25,21 @@ export type Algorithm = (typeof ALGORITHMS)[number];
 export const DEFAULT_ALGORITHMS = ALGORITHMS.filter((algorithm) => algorithm !== "whirlpool");
 
 export type Digests = Record<Algorithm, string>;
+export type HexDigests = Record<Algorithm, string>;
+export type RawDigests = Record<Algorithm, Uint8Array>;
+
+export type DigestBundle = {
+  digests: Digests;
+  hexdigests: HexDigests;
+  rawdigests: RawDigests;
+};
 
 const ALGORITHM_SET = new Set<string>(ALGORITHMS);
 
 /** Backend interface implemented by both the native addon wrapper and the WASM wrapper. */
 export type Backend = {
   update(data: Uint8Array): void;
-  finalize(): Digests;
+  finalize(): DigestBundle;
 };
 
 /** Backend interface for native file hashing. */

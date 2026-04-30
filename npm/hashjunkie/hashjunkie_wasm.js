@@ -6,7 +6,7 @@
  * ```js
  * const h = new WasmHasher(['sha256', 'blake3']);
  * h.update(new Uint8Array([104, 101, 108, 108, 111]));
- * const digests = h.finalize(); // { sha256: '...', blake3: '...' }
+ * const bundle = h.finalize(); // { digests, hexdigests, rawdigests }
  * ```
  */
 export class WasmHasher {
@@ -21,8 +21,8 @@ export class WasmHasher {
         wasm.__wbg_wasmhasher_free(ptr, 0);
     }
     /**
-     * Finalize all hashers and return a plain JS object mapping algorithm
-     * name to digest string. Throws if called again after the
+     * Finalize all hashers and return standard, hex, and raw digest maps.
+     * Throws if called again after the
      * first `finalize()`.
      * @returns {any}
      */
@@ -125,6 +125,10 @@ function __wbg_get_imports() {
             const ret = new Object();
             return addHeapObject(ret);
         },
+        __wbg_new_from_slice_5a173c243af2e823: function(arg0, arg1) {
+            const ret = new Uint8Array(getArrayU8FromWasm0(arg0, arg1));
+            return addHeapObject(ret);
+        },
         __wbg_set_5337f8ac82364a3f: function() { return handleError(function (arg0, arg1, arg2) {
             const ret = Reflect.set(getObject(arg0), getObject(arg1), getObject(arg2));
             return ret;
@@ -161,6 +165,11 @@ function dropObject(idx) {
     if (idx < 1028) return;
     heap[idx] = heap_next;
     heap_next = idx;
+}
+
+function getArrayU8FromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return getUint8ArrayMemory0().subarray(ptr / 1, ptr / 1 + len);
 }
 
 let cachedDataViewMemory0 = null;
