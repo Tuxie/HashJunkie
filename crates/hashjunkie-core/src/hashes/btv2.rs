@@ -150,6 +150,20 @@ mod tests {
     }
 
     #[test]
+    fn default_equals_new() {
+        let mut default_hasher = Btv2Hasher::default();
+        default_hasher.update(b"abc");
+
+        let mut new_hasher = Btv2Hasher::new();
+        new_hasher.update(b"abc");
+
+        assert_eq!(
+            Box::new(default_hasher).finalize_hex(),
+            Box::new(new_hasher).finalize_hex()
+        );
+    }
+
+    #[test]
     fn single_block_is_sha256_of_data() {
         assert_eq!(
             hash(b"abc"),

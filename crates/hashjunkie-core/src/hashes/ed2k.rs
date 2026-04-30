@@ -103,6 +103,20 @@ mod tests {
     }
 
     #[test]
+    fn default_equals_new() {
+        let mut default_hasher = Ed2kHasher::default();
+        default_hasher.update(b"abc");
+
+        let mut new_hasher = Ed2kHasher::new();
+        new_hasher.update(b"abc");
+
+        assert_eq!(
+            Box::new(default_hasher).finalize_hex(),
+            Box::new(new_hasher).finalize_hex()
+        );
+    }
+
+    #[test]
     fn small_file_is_plain_md4() {
         assert_eq!(hash(b"abc"), "a448017aaf21d8525fc10ae87aa6729d");
     }
@@ -140,5 +154,26 @@ mod tests {
         root.update(h2);
 
         assert_eq!(hash(&data), hex::encode(root.finalize()));
+    }
+
+    #[test]
+    fn new_update_after_exact_block_flushes_deferred_block() {
+        let mut h = Ed2kHasher::new();
+        h.update(&vec![0xA5; BLOCK_SIZE]);
+        h.update(&[0x5A]);
+
+        let mut data = vec![0xA5; BLOCK_SIZE];
+        data.push(0x5A);
+
+        assert_eq!(Box::new(h).finalize_hex(), hash(&data));
+    }
+
+    #[test]
+    fn pending_blocks_flush_at_parallel_batch_threshold() {
+        let data = (0..(BLOCK_SIZE * PARALLEL_BLOCK_BATCH_SIZE + 1))
+            .map(|i| (i % 251) as u8)
+            .collect::<Vec<_>>();
+
+        assert_eq!(hash(&data), "dab73f86a7763a9268d72761b7a4ae2a");
     }
 }

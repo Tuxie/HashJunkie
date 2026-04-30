@@ -129,6 +129,20 @@ mod tests {
     }
 
     #[test]
+    fn default_equals_new() {
+        let mut default_hasher = TigerTreeHasher::default();
+        default_hasher.update(b"abc");
+
+        let mut new_hasher = TigerTreeHasher::new();
+        new_hasher.update(b"abc");
+
+        assert_eq!(
+            Box::new(default_hasher).finalize_hex(),
+            Box::new(new_hasher).finalize_hex()
+        );
+    }
+
+    #[test]
     fn single_leaf_hash_is_base32_tiger_of_prefixed_data() {
         assert_eq!(hash(b"abc"), base32_no_padding(&tiger_leaf(b"abc")));
     }
@@ -157,5 +171,17 @@ mod tests {
         let right = tiger_leaf(&data[LEAF_SIZE..]);
 
         assert_eq!(hash(&data), base32_no_padding(&tiger_node(&left, &right)));
+    }
+
+    #[test]
+    fn new_update_after_exact_leaf_flushes_deferred_leaf() {
+        let mut h = TigerTreeHasher::new();
+        h.update(&vec![0xA5; LEAF_SIZE]);
+        h.update(&[0x5A]);
+
+        let mut data = vec![0xA5; LEAF_SIZE];
+        data.push(0x5A);
+
+        assert_eq!(Box::new(h).finalize_hex(), hash(&data));
     }
 }

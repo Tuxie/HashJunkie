@@ -238,6 +238,20 @@ mod tests {
     }
 
     #[test]
+    fn default_equals_new() {
+        let mut default_hasher = AichHasher::default();
+        default_hasher.update(b"abc");
+
+        let mut new_hasher = AichHasher::new();
+        new_hasher.update(b"abc");
+
+        assert_eq!(
+            Box::new(default_hasher).finalize_hex(),
+            Box::new(new_hasher).finalize_hex()
+        );
+    }
+
+    #[test]
     fn single_block_is_base32_sha1_of_data() {
         assert_eq!(hash(b"abc"), "VGMT4NSHA2AWVOR6EVYXQUGCNSONBWE5");
     }
@@ -301,5 +315,18 @@ mod tests {
 
         assert_eq!(chunked, single);
         assert!(parallel_batches() > 0);
+    }
+
+    #[test]
+    fn large_tree_uses_parallel_recursive_join() {
+        let data = (0..(PART_SIZE as usize * 5 + 1))
+            .map(|i| (i % 251) as u8)
+            .collect::<Vec<_>>();
+        assert_eq!(hash(&data), "3Q7HWWLCHUD4TWSBFMNSL6H3Z4MOVLSG");
+    }
+
+    #[test]
+    fn base32_encodes_remaining_bits() {
+        assert_eq!(base32_no_padding(&[0xff]), "74");
     }
 }
