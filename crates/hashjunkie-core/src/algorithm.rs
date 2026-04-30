@@ -3,6 +3,7 @@ use std::fmt;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Algorithm {
     Blake3,
+    Btv2,
     CidV0,
     CidV1,
     Crc32,
@@ -25,6 +26,7 @@ impl Algorithm {
     pub fn supported() -> &'static [Algorithm] {
         &[
             Algorithm::Blake3,
+            Algorithm::Btv2,
             Algorithm::CidV0,
             Algorithm::CidV1,
             Algorithm::Crc32,
@@ -47,6 +49,7 @@ impl Algorithm {
     pub fn all() -> &'static [Algorithm] {
         &[
             Algorithm::Blake3,
+            Algorithm::Btv2,
             Algorithm::CidV0,
             Algorithm::CidV1,
             Algorithm::Crc32,
@@ -68,6 +71,7 @@ impl Algorithm {
     pub fn as_str(&self) -> &'static str {
         match self {
             Algorithm::Blake3 => "blake3",
+            Algorithm::Btv2 => "btv2",
             Algorithm::CidV0 => "cidv0",
             Algorithm::CidV1 => "cidv1",
             Algorithm::Crc32 => "crc32",
@@ -111,6 +115,7 @@ impl std::str::FromStr for Algorithm {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "blake3" => Ok(Algorithm::Blake3),
+            "btv2" => Ok(Algorithm::Btv2),
             "cidv0" => Ok(Algorithm::CidV0),
             "cidv1" => Ok(Algorithm::CidV1),
             "crc32" => Ok(Algorithm::Crc32),
@@ -139,13 +144,13 @@ mod tests {
 
     #[test]
     fn all_returns_default_algorithms_without_whirlpool() {
-        assert_eq!(Algorithm::all().len(), 16);
+        assert_eq!(Algorithm::all().len(), 17);
         assert!(!Algorithm::all().contains(&Algorithm::Whirlpool));
     }
 
     #[test]
-    fn supported_returns_all_17_algorithms_including_whirlpool() {
-        assert_eq!(Algorithm::supported().len(), 17);
+    fn supported_returns_all_18_algorithms_including_whirlpool() {
+        assert_eq!(Algorithm::supported().len(), 18);
         assert!(Algorithm::supported().contains(&Algorithm::Ed2k));
         assert!(Algorithm::supported().contains(&Algorithm::Tiger));
         assert!(Algorithm::supported().contains(&Algorithm::Whirlpool));

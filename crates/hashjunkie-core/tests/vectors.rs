@@ -19,6 +19,10 @@ fn all_algorithms_match_known_vectors_for_small_bin() {
             "882179b8dbccd285cda241d968cfcccb3156c5edac2fa3761bb6eda7ff8cb172",
         ),
         (
+            "btv2",
+            "785b0751fc2c53dc14a4ce3d800e69ef9ce1009eb327ccf458afe09c242c26c9",
+        ),
+        (
             "cidv0",
             "bafkreidylmdvd7bmkpobjjgohwaa42ppttqqbhvte7gpiwfp4cocilbgze",
         ),
@@ -58,6 +62,45 @@ fn all_algorithms_match_known_vectors_for_small_bin() {
             .unwrap_or_else(|| panic!("missing algorithm: {name}"));
         assert_eq!(got, expected_hex, "mismatch for {name}");
     }
+}
+
+#[test]
+fn btv2_matches_bep52_pieces_root_vectors_and_chunked_updates() {
+    let cases: &[(&[u8], &str)] = &[
+        (
+            b"",
+            "0000000000000000000000000000000000000000000000000000000000000000",
+        ),
+        (
+            b"abc",
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+        ),
+    ];
+
+    for (data, expected) in cases {
+        let mut h = MultiHasher::new(&[Algorithm::Btv2]);
+        h.update(data);
+        assert_eq!(h.finalize()[&Algorithm::Btv2], *expected);
+    }
+
+    let mut data = vec![0x11; 16 * 1024];
+    data.push(0x22);
+
+    let mut single = MultiHasher::new(&[Algorithm::Btv2]);
+    single.update(&data);
+    assert_eq!(
+        single.finalize()[&Algorithm::Btv2],
+        "00fc3eb1148fae163d7387a6327f5c177693b8e548446cd3289b7614e2c136ac"
+    );
+
+    let mut chunked = MultiHasher::new(&[Algorithm::Btv2]);
+    for chunk in data.chunks(777) {
+        chunked.update(chunk);
+    }
+    assert_eq!(
+        chunked.finalize()[&Algorithm::Btv2],
+        "00fc3eb1148fae163d7387a6327f5c177693b8e548446cd3289b7614e2c136ac"
+    );
 }
 
 #[test]

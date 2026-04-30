@@ -7,7 +7,7 @@ HashJunkie ships as two tools that share the same Rust core:
 - **`@perw/hashjunkie`** — TypeScript/JavaScript library for Bun and Node.js
 - **`hashjunkie` CLI** — standalone binary for shell scripts and pipelines
 
-Both support the same 17 algorithms and produce identical output. Whirlpool is supported but opt-in because it is much slower than the other hashes.
+Both support the same 18 algorithms and produce identical output. Whirlpool is supported but opt-in because it is much slower than the other hashes.
 
 ---
 
@@ -36,7 +36,7 @@ await w.write(new TextEncoder().encode("hello"));
 await w.close();
 const { sha256 } = await hj.digests;  // lowercase hex string
 
-// No arguments = the default 16 algorithms at once; add "whirlpool" explicitly when needed
+// No arguments = the default 17 algorithms at once; add "whirlpool" explicitly when needed
 const hj2 = new HashJunkie();
 ```
 
@@ -61,7 +61,7 @@ Release assets are published with these archive names:
 ### Hash files
 
 ```sh
-# Default 16 algorithms, JSON output
+# Default 17 algorithms, JSON output
 hashjunkie file.bin
 
 # Specific algorithms
@@ -118,6 +118,7 @@ echo "SHA-256: $sha"
 | Algorithm | Description | Output |
 |---|---|---|
 | `blake3` | BLAKE3 | 64 hex chars |
+| `btv2` | BitTorrent v2 per-file `pieces root` — BEP 52 SHA-256 Merkle root | 64 hex chars |
 | `cidv0` | IPFS CID matching stock Kubo `ipfs add --nocopy` defaults | CID string |
 | `cidv1` | IPFS CIDv1 for `ipfs add --nocopy --cid-version=1` | base32 CID string |
 | `crc32` | CRC-32 | 8 hex chars |
@@ -135,9 +136,9 @@ echo "SHA-256: $sha"
 | `xxh128` | xxHash 128-bit | 32 hex chars |
 | `xxh3` | xxHash 64-bit | 16 hex chars |
 
-Most digests are lowercase hex strings. `cidv0` returns Kubo-compatible CIDv0 roots for multi-block DAG-PB files and CIDv1 raw-leaf strings for single-block files. `cidv1` returns lowercase base32 CIDv1 strings. `tiger` returns the standard uppercase Base32 Tiger Tree root. The JSON field names match the algorithm names above and are always sorted alphabetically. When no algorithms are specified, HashJunkie computes the default 16 algorithms and skips `whirlpool`; pass `-a whirlpool` or include `"whirlpool"` in the API algorithm list to compute it.
+Most digests are lowercase hex strings. `btv2` returns the BEP 52 per-file `pieces root`; BEP 52 omits `pieces root` for empty files, so HashJunkie returns the zero Merkle root for standalone empty-file hashing. `cidv0` returns Kubo-compatible CIDv0 roots for multi-block DAG-PB files and CIDv1 raw-leaf strings for single-block files. `cidv1` returns lowercase base32 CIDv1 strings. `tiger` returns the standard uppercase Base32 Tiger Tree root. The JSON field names match the algorithm names above and are always sorted alphabetically. When no algorithms are specified, HashJunkie computes the default 17 algorithms and skips `whirlpool`; pass `-a whirlpool` or include `"whirlpool"` in the API algorithm list to compute it.
 
-The multi-block algorithms (`dropbox`, `ed2k`, `hidrive`, `mailru`) produce output compatible with their standard service/client definitions; `dropbox`, `hidrive`, and `mailru` match [rclone](https://rclone.org/)'s `lsjson --hash` command.
+The multi-block algorithms (`btv2`, `dropbox`, `ed2k`, `hidrive`, `mailru`) produce output compatible with their standard service/client definitions; `dropbox`, `hidrive`, and `mailru` match [rclone](https://rclone.org/)'s `lsjson --hash` command.
 
 ---
 
@@ -160,7 +161,7 @@ The JS library loads the native addon if available, otherwise falls back to WASM
 ```
 hashjunkie/
 ├── crates/
-│   ├── hashjunkie-core/        # Rust hash logic — 17 supported algorithms
+│   ├── hashjunkie-core/        # Rust hash logic — 18 supported algorithms
 │   ├── hashjunkie-napi/        # napi-rs wrapper → platform .node addons
 │   └── hashjunkie-cli/         # Standalone binary (clap, stdin + file modes)
 ├── npm/

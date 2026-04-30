@@ -13,6 +13,7 @@ import type { Digests } from "./types";
 
 const MOCK_DIGESTS: Digests = {
   blake3: "aa",
+  btv2: "99",
   cidv0: "Qm...",
   cidv1: "bafkrei...",
   crc32: "bb",

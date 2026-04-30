@@ -168,6 +168,7 @@ fn make_hasher(alg: Algorithm) -> Box<dyn Hasher> {
     use hashes::*;
     match alg {
         Algorithm::Blake3 => Box::new(Blake3Hasher::new()),
+        Algorithm::Btv2 => Box::new(Btv2Hasher::new()),
         Algorithm::CidV0 => Box::new(CidHasher::v0()),
         Algorithm::CidV1 => Box::new(CidHasher::v1()),
         Algorithm::Crc32 => Box::new(Crc32Hasher::new()),
@@ -207,7 +208,7 @@ mod tests {
         let mut h = MultiHasher::all();
         h.update(b"");
         let digests = h.finalize();
-        assert_eq!(digests.len(), 16);
+        assert_eq!(digests.len(), 17);
         assert!(digests.contains_key(&Algorithm::Ed2k));
         assert!(digests.contains_key(&Algorithm::Tiger));
         assert!(!digests.contains_key(&Algorithm::Whirlpool));
@@ -266,6 +267,7 @@ mod tests {
         let data = vec![7; PARALLEL_UPDATE_MIN * 2 + 13];
         let algs = &[
             Algorithm::Blake3,
+            Algorithm::Btv2,
             Algorithm::Sha256,
             Algorithm::Md5,
             Algorithm::Xxh3,

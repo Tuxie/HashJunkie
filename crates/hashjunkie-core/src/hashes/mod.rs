@@ -9,6 +9,9 @@ pub use rustcrypto::RustCryptoHasher;
 mod blake3;
 pub use blake3::Blake3Hasher;
 
+mod btv2;
+pub use btv2::Btv2Hasher;
+
 mod crc32;
 pub use crc32::Crc32Hasher;
 

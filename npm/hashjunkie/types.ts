@@ -1,5 +1,6 @@
 export const ALGORITHMS = [
   "blake3",
+  "btv2",
   "cidv0",
   "cidv1",
   "crc32",

@@ -3,6 +3,7 @@ import { makeWasmBackend } from "./wasm";
 
 // SHA-256("abc") — verified via sha256sum and Python hashlib.
 const ABC_SHA256 = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+const ABC_BTV2 = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
 const ABC_CID = "bafkreif2pall7dybz7vecqka3zo24irdwabwdi4wc55jznaq75q7eaavvu";
 const ZEROES_MULTI_CIDV0 = "Qmc2SWxBGrBtWKZxuyg8999QuzXsPR47zsWiM7Yq9YFUXT";
 const ZEROES_MULTI_CIDV1 = "bafybeigllfqgfpqydppr6cmv56g7ax4wyhruzswvcefv6j5kj77nzttfki";
@@ -16,6 +17,13 @@ test("makeWasmBackend: sha256 of 'abc' matches known value", () => {
   backend.update(new TextEncoder().encode("abc"));
   const digests = backend.finalize();
   expect(digests.sha256).toBe(ABC_SHA256);
+});
+
+test("makeWasmBackend: btv2 of 'abc' matches BEP 52 single-block pieces root", () => {
+  const backend = makeWasmBackend(["btv2"]);
+  backend.update(new TextEncoder().encode("abc"));
+  const digests = backend.finalize();
+  expect(digests.btv2).toBe(ABC_BTV2);
 });
 
 test("makeWasmBackend: md5 of empty input matches known value", () => {

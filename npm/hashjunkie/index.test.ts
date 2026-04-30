@@ -12,6 +12,7 @@ import type { Digests } from "./types";
 
 const MOCK_DIGESTS: Digests = {
   blake3: "aa",
+  btv2: "99",
   cidv0: "Qm...",
   cidv1: "bafkrei...",
   crc32: "bb",
@@ -86,8 +87,9 @@ async function pipe(hj: HashJunkie, inputs: Uint8Array[]): Promise<Uint8Array[]>
 // --- re-exports ---
 
 test("ALGORITHMS is re-exported from index", () => {
-  expect(ALGORITHMS).toHaveLength(17);
+  expect(ALGORITHMS).toHaveLength(18);
   expect(ALGORITHMS).toContain("sha256");
+  expect(ALGORITHMS).toContain("btv2");
   expect(ALGORITHMS).toContain("cidv0");
   expect(ALGORITHMS).toContain("cidv1");
   expect(ALGORITHMS).toContain("ed2k");
@@ -95,7 +97,8 @@ test("ALGORITHMS is re-exported from index", () => {
 });
 
 test("DEFAULT_ALGORITHMS is re-exported from index", () => {
-  expect(DEFAULT_ALGORITHMS).toHaveLength(16);
+  expect(DEFAULT_ALGORITHMS).toHaveLength(17);
+  expect(DEFAULT_ALGORITHMS).toContain("btv2");
   expect(DEFAULT_ALGORITHMS).toContain("ed2k");
   expect(DEFAULT_ALGORITHMS).toContain("tiger");
   expect(DEFAULT_ALGORITHMS).not.toContain("whirlpool");
