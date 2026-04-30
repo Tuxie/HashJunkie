@@ -7,6 +7,7 @@ const ABC_CID = "bafkreif2pall7dybz7vecqka3zo24irdwabwdi4wc55jznaq75q7eaavvu";
 const ZEROES_MULTI_CIDV0 = "Qmc2SWxBGrBtWKZxuyg8999QuzXsPR47zsWiM7Yq9YFUXT";
 const ZEROES_MULTI_CIDV1 = "bafybeigllfqgfpqydppr6cmv56g7ax4wyhruzswvcefv6j5kj77nzttfki";
 const ABC_ED2K = "a448017aaf21d8525fc10ae87aa6729d";
+const EMPTY_TIGER = "LWPNACQDBZRYXW3VHJVCJ64QBZNGHOHHHZWCLNQ";
 // MD5("") — verified via md5sum /dev/null / RFC 1321.
 const EMPTY_MD5 = "d41d8cd98f00b204e9800998ecf8427e";
 
@@ -29,6 +30,13 @@ test("makeWasmBackend: ed2k of 'abc' matches known MD4-compatible value", () => 
   backend.update(new TextEncoder().encode("abc"));
   const digests = backend.finalize();
   expect(digests.ed2k).toBe(ABC_ED2K);
+});
+
+test("makeWasmBackend: tiger of empty input matches known Gnutella Tiger", () => {
+  const backend = makeWasmBackend(["tiger"]);
+  backend.update(new Uint8Array(0));
+  const digests = backend.finalize();
+  expect(digests.tiger).toBe(EMPTY_TIGER);
 });
 
 test("makeWasmBackend: cidv1 of 'abc' matches raw-leaf IPFS CID", () => {

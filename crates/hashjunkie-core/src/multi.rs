@@ -180,6 +180,7 @@ fn make_hasher(alg: Algorithm) -> Box<dyn Hasher> {
         Algorithm::Sha1 => Box::new(RustCryptoHasher::<sha1::Sha1>::new()),
         Algorithm::Sha256 => Box::new(RustCryptoHasher::<sha2::Sha256>::new()),
         Algorithm::Sha512 => Box::new(RustCryptoHasher::<sha2::Sha512>::new()),
+        Algorithm::Tiger => Box::new(TigerTreeHasher::new()),
         Algorithm::Whirlpool => Box::new(RustCryptoHasher::<whirlpool::Whirlpool>::new()),
         Algorithm::Xxh128 => Box::new(Xxh128Hasher::new()),
         Algorithm::Xxh3 => Box::new(Xxh3Hasher::new()),
@@ -206,8 +207,9 @@ mod tests {
         let mut h = MultiHasher::all();
         h.update(b"");
         let digests = h.finalize();
-        assert_eq!(digests.len(), 15);
+        assert_eq!(digests.len(), 16);
         assert!(digests.contains_key(&Algorithm::Ed2k));
+        assert!(digests.contains_key(&Algorithm::Tiger));
         assert!(!digests.contains_key(&Algorithm::Whirlpool));
     }
 

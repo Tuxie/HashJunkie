@@ -24,9 +24,10 @@ const MOCK_DIGESTS: Digests = {
   sha1: "22",
   sha256: "33",
   sha512: "44",
-  whirlpool: "55",
-  xxh128: "66",
-  xxh3: "77",
+  tiger: "55",
+  whirlpool: "66",
+  xxh128: "77",
+  xxh3: "88",
 };
 
 function pickDigests(algorithms: readonly string[]): Digests {
@@ -85,16 +86,18 @@ async function pipe(hj: HashJunkie, inputs: Uint8Array[]): Promise<Uint8Array[]>
 // --- re-exports ---
 
 test("ALGORITHMS is re-exported from index", () => {
-  expect(ALGORITHMS).toHaveLength(16);
+  expect(ALGORITHMS).toHaveLength(17);
   expect(ALGORITHMS).toContain("sha256");
   expect(ALGORITHMS).toContain("cidv0");
   expect(ALGORITHMS).toContain("cidv1");
   expect(ALGORITHMS).toContain("ed2k");
+  expect(ALGORITHMS).toContain("tiger");
 });
 
 test("DEFAULT_ALGORITHMS is re-exported from index", () => {
-  expect(DEFAULT_ALGORITHMS).toHaveLength(15);
+  expect(DEFAULT_ALGORITHMS).toHaveLength(16);
   expect(DEFAULT_ALGORITHMS).toContain("ed2k");
+  expect(DEFAULT_ALGORITHMS).toContain("tiger");
   expect(DEFAULT_ALGORITHMS).not.toContain("whirlpool");
 });
 

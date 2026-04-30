@@ -1,6 +1,6 @@
 # HashJunkie
 
-Multi-hash streaming library for Bun and Node.js. Computes any combination of 16 hash algorithms in a single pass — zero extra copies, no external system dependencies. Whirlpool is supported but opt-in because it is much slower than the other hashes.
+Multi-hash streaming library for Bun and Node.js. Computes any combination of 17 hash algorithms in a single pass — zero extra copies, no external system dependencies. Whirlpool is supported but opt-in because it is much slower than the other hashes.
 
 ```ts
 import { HashJunkie } from "@perw/hashjunkie";
@@ -28,11 +28,12 @@ const { sha256, blake3, md5 } = await hj.digests;
 | `sha1` | SHA-1 |
 | `sha256` | SHA-256 |
 | `sha512` | SHA-512 |
+| `tiger` | Tiger Tree Hash used by Gnutella2/Direct Connect |
 | `whirlpool` | Whirlpool, opt-in |
 | `xxh128` | xxHash 128-bit |
 | `xxh3` | xxHash 64-bit (xxh3) |
 
-Pass no arguments to get the default 15 hashes at once. Include `whirlpool` explicitly when you need a 1Fichier-compatible Whirlpool hash.
+Pass no arguments to get the default 16 hashes at once. Include `whirlpool` explicitly when you need a 1Fichier-compatible Whirlpool hash.
 
 ## Installation
 
@@ -67,7 +68,7 @@ console.log(ALGORITHMS); // readonly ["blake3", "crc32", ...]
 console.log(DEFAULT_ALGORITHMS); // same list without "whirlpool"
 ```
 
-Most digests are lowercase hex strings. `cidv0` returns Kubo-compatible CIDv0 roots for multi-block DAG-PB files and CIDv1 raw-leaf strings for single-block files. `cidv1` returns lowercase base32 CIDv1 strings. The `digests` promise resolves when the writable side closes cleanly, and rejects if the stream is aborted.
+Most digests are lowercase hex strings. `cidv0` returns Kubo-compatible CIDv0 roots for multi-block DAG-PB files and CIDv1 raw-leaf strings for single-block files. `cidv1` returns lowercase base32 CIDv1 strings. `tiger` returns the standard uppercase Base32 Tiger Tree root. The `digests` promise resolves when the writable side closes cleanly, and rejects if the stream is aborted.
 
 ## Best practices
 
@@ -125,7 +126,7 @@ import type { Algorithm, Digests } from "@perw/hashjunkie";
 type Algorithm =
   | "blake3" | "cidv0" | "cidv1" | "crc32" | "dropbox" | "ed2k"
   | "hidrive" | "mailru" | "md5" | "quickxor" | "sha1" | "sha256" | "sha512"
-  | "whirlpool" | "xxh128" | "xxh3";
+  | "tiger" | "whirlpool" | "xxh128" | "xxh3";
 
 type Digests = Record<Algorithm, string>;
 

@@ -45,6 +45,7 @@ fn all_algorithms_match_known_vectors_for_small_bin() {
             "sha512",
             "37f652be867f28ed033269cbba201af2112c2b3fd334a89fd2f757938ddee815787cc61d6e24a8a33340d0f7e86ffc058816b88530766ba6e231620a130b566c",
         ),
+        ("tiger", "4OQY25UN2XHIDQPV5U6BXAZ47INUCYGIBK7LFNI"),
         ("xxh128", "83885e853bb6640ca870f92984398d22"),
         ("xxh3", "a870f92984398d22"),
     ];
@@ -79,6 +80,28 @@ fn ed2k_matches_known_vectors_and_exact_block_boundary_rule() {
         h.finalize()[&Algorithm::Ed2k],
         "9cab445c0310e326f5c73a1953882e84"
     );
+}
+
+#[test]
+fn tiger_matches_known_empty_vector_and_chunked_updates() {
+    let mut empty = MultiHasher::new(&[Algorithm::Tiger]);
+    empty.update(b"");
+    assert_eq!(
+        empty.finalize()[&Algorithm::Tiger],
+        "LWPNACQDBZRYXW3VHJVCJ64QBZNGHOHHHZWCLNQ"
+    );
+
+    let data = (0..2049).map(|i| (i % 251) as u8).collect::<Vec<_>>();
+    let mut single = MultiHasher::new(&[Algorithm::Tiger]);
+    single.update(&data);
+    let single_digest = single.finalize()[&Algorithm::Tiger].clone();
+
+    let mut chunked = MultiHasher::new(&[Algorithm::Tiger]);
+    for chunk in data.chunks(333) {
+        chunked.update(chunk);
+    }
+
+    assert_eq!(chunked.finalize()[&Algorithm::Tiger], single_digest);
 }
 
 #[test]

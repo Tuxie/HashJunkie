@@ -12,6 +12,7 @@ export const ALGORITHMS = [
   "sha1",
   "sha256",
   "sha512",
+  "tiger",
   "whirlpool",
   "xxh128",
   "xxh3",

@@ -34,3 +34,6 @@ pub use quickxor::QuickXorHasher;
 
 mod mailru;
 pub use mailru::MailruHasher;
+
+mod tiger_tree;
+pub use tiger_tree::TigerTreeHasher;

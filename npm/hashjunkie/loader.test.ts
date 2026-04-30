@@ -25,9 +25,10 @@ const MOCK_DIGESTS: Digests = {
   sha1: "22",
   sha256: "33",
   sha512: "44",
-  whirlpool: "55",
-  xxh128: "66",
-  xxh3: "77",
+  tiger: "55",
+  whirlpool: "66",
+  xxh128: "77",
+  xxh3: "88",
 };
 
 afterEach(() => {

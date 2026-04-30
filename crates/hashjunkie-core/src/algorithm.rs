@@ -15,6 +15,7 @@ pub enum Algorithm {
     Sha1,
     Sha256,
     Sha512,
+    Tiger,
     Whirlpool,
     Xxh128,
     Xxh3,
@@ -36,6 +37,7 @@ impl Algorithm {
             Algorithm::Sha1,
             Algorithm::Sha256,
             Algorithm::Sha512,
+            Algorithm::Tiger,
             Algorithm::Whirlpool,
             Algorithm::Xxh128,
             Algorithm::Xxh3,
@@ -57,6 +59,7 @@ impl Algorithm {
             Algorithm::Sha1,
             Algorithm::Sha256,
             Algorithm::Sha512,
+            Algorithm::Tiger,
             Algorithm::Xxh128,
             Algorithm::Xxh3,
         ]
@@ -77,6 +80,7 @@ impl Algorithm {
             Algorithm::Sha1 => "sha1",
             Algorithm::Sha256 => "sha256",
             Algorithm::Sha512 => "sha512",
+            Algorithm::Tiger => "tiger",
             Algorithm::Whirlpool => "whirlpool",
             Algorithm::Xxh128 => "xxh128",
             Algorithm::Xxh3 => "xxh3",
@@ -119,6 +123,7 @@ impl std::str::FromStr for Algorithm {
             "sha1" => Ok(Algorithm::Sha1),
             "sha256" => Ok(Algorithm::Sha256),
             "sha512" => Ok(Algorithm::Sha512),
+            "tiger" => Ok(Algorithm::Tiger),
             "whirlpool" => Ok(Algorithm::Whirlpool),
             "xxh128" => Ok(Algorithm::Xxh128),
             "xxh3" => Ok(Algorithm::Xxh3),
@@ -134,14 +139,15 @@ mod tests {
 
     #[test]
     fn all_returns_default_algorithms_without_whirlpool() {
-        assert_eq!(Algorithm::all().len(), 15);
+        assert_eq!(Algorithm::all().len(), 16);
         assert!(!Algorithm::all().contains(&Algorithm::Whirlpool));
     }
 
     #[test]
-    fn supported_returns_all_16_algorithms_including_whirlpool() {
-        assert_eq!(Algorithm::supported().len(), 16);
+    fn supported_returns_all_17_algorithms_including_whirlpool() {
+        assert_eq!(Algorithm::supported().len(), 17);
         assert!(Algorithm::supported().contains(&Algorithm::Ed2k));
+        assert!(Algorithm::supported().contains(&Algorithm::Tiger));
         assert!(Algorithm::supported().contains(&Algorithm::Whirlpool));
     }
 

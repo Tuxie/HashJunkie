@@ -110,7 +110,7 @@ const FIXTURE: &str = concat!(
 );
 
 #[test]
-fn file_mode_default_15_hashes_correct_for_fixture() {
+fn file_mode_default_16_hashes_correct_for_fixture() {
     let output = bin().arg(FIXTURE).output().unwrap();
     assert!(
         output.status.success(),
@@ -157,6 +157,7 @@ fn file_mode_default_15_hashes_correct_for_fixture() {
         hashes["sha512"],
         "37f652be867f28ed033269cbba201af2112c2b3fd334a89fd2f757938ddee815787cc61d6e24a8a33340d0f7e86ffc058816b88530766ba6e231620a130b566c"
     );
+    assert_eq!(hashes["tiger"], "4OQY25UN2XHIDQPV5U6BXAZ47INUCYGIBK7LFNI");
     assert!(hashes["whirlpool"].is_null());
     assert_eq!(hashes["xxh128"], "83885e853bb6640ca870f92984398d22");
     assert_eq!(hashes["xxh3"], "a870f92984398d22");

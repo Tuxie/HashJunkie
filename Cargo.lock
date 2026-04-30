@@ -408,6 +408,7 @@ dependencies = [
  "rayon",
  "sha1",
  "sha2",
+ "tiger",
  "whirlpool",
  "xxhash-rust",
 ]
@@ -794,6 +795,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
+]
+
+[[package]]
+name = "tiger"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8ad6ecb56d435fa53bca61a6b7c9019bf1f18b56760150e2e97afd97290ff401"
+dependencies = [
+ "digest",
 ]
 
 [[package]]
