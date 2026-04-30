@@ -275,6 +275,11 @@ jobs:
 
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
+        with:
+          # The Windows build has occasionally failed after successful artifact
+          # upload while saving the post-job cache. Keep restore benefits, but
+          # do not let a best-effort cache save block a release.
+          save-if: ${{ runner.os != 'Windows' }}
 
       - name: Build
         run: >
