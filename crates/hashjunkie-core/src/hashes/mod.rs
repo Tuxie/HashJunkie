@@ -23,6 +23,9 @@ pub use xxhash::{Xxh3Hasher, Xxh128Hasher};
 mod dropbox;
 pub use dropbox::DropboxHasher;
 
+mod ed2k;
+pub use ed2k::Ed2kHasher;
+
 mod hidrive;
 pub use hidrive::HidriveHasher;
 

@@ -2,8 +2,8 @@ import { expect, test } from "bun:test";
 import type { Algorithm } from "./types";
 import { ALGORITHMS, DEFAULT_ALGORITHMS, parseAlgorithms } from "./types";
 
-test("ALGORITHMS contains exactly 15 algorithms", () => {
-  expect(ALGORITHMS).toHaveLength(15);
+test("ALGORITHMS contains exactly 16 algorithms", () => {
+  expect(ALGORITHMS).toHaveLength(16);
 });
 
 test("ALGORITHMS includes all required algorithm names", () => {
@@ -13,6 +13,7 @@ test("ALGORITHMS includes all required algorithm names", () => {
     "cidv1",
     "crc32",
     "dropbox",
+    "ed2k",
     "hidrive",
     "mailru",
     "md5",
@@ -30,21 +31,22 @@ test("ALGORITHMS includes all required algorithm names", () => {
 });
 
 test("DEFAULT_ALGORITHMS excludes opt-in whirlpool", () => {
-  expect(DEFAULT_ALGORITHMS).toHaveLength(14);
+  expect(DEFAULT_ALGORITHMS).toHaveLength(15);
+  expect(DEFAULT_ALGORITHMS).toContain("ed2k");
   expect(DEFAULT_ALGORITHMS).not.toContain("whirlpool");
 });
 
 test("parseAlgorithms() with no argument returns default algorithms", () => {
   const result = parseAlgorithms();
-  expect(result).toHaveLength(14);
+  expect(result).toHaveLength(15);
   expect(result).toEqual([...DEFAULT_ALGORITHMS]);
 });
 
 test("parseAlgorithms() returns a mutable copy (not the const array)", () => {
   const result = parseAlgorithms();
   result.push("sha256" as never); // should not throw
-  expect(ALGORITHMS).toHaveLength(15); // original unchanged
-  expect(DEFAULT_ALGORITHMS).toHaveLength(14); // original unchanged
+  expect(ALGORITHMS).toHaveLength(16); // original unchanged
+  expect(DEFAULT_ALGORITHMS).toHaveLength(15); // original unchanged
 });
 
 test("parseAlgorithms() with a valid subset returns that subset", () => {

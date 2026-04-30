@@ -4,6 +4,7 @@ export const ALGORITHMS = [
   "cidv1",
   "crc32",
   "dropbox",
+  "ed2k",
   "hidrive",
   "mailru",
   "md5",

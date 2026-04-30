@@ -66,10 +66,11 @@ mod tests {
     }
 
     #[test]
-    fn resolved_algorithms_none_returns_default_14_without_whirlpool() {
+    fn resolved_algorithms_none_returns_default_15_without_whirlpool() {
         let args = Args::parse_from(["hashjunkie"]);
         let algs = args.resolved_algorithms().unwrap();
-        assert_eq!(algs.len(), 14);
+        assert_eq!(algs.len(), 15);
+        assert!(algs.contains(&Algorithm::Ed2k));
         assert!(!algs.contains(&Algorithm::Whirlpool));
     }
 

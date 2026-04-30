@@ -110,7 +110,7 @@ const FIXTURE: &str = concat!(
 );
 
 #[test]
-fn file_mode_default_14_hashes_correct_for_fixture() {
+fn file_mode_default_15_hashes_correct_for_fixture() {
     let output = bin().arg(FIXTURE).output().unwrap();
     assert!(
         output.status.success(),
@@ -137,6 +137,7 @@ fn file_mode_default_14_hashes_correct_for_fixture() {
         hashes["dropbox"],
         "05fe36f555179feb8712eadb2a1cadac8c3c7378859f8dbeaa8a6ea224ea3658"
     );
+    assert_eq!(hashes["ed2k"], "5ae257c47e9be1243ee32aabe408fb6b");
     assert_eq!(
         hashes["hidrive"],
         "5b00669c480d5cffbdfa8bdba99561160f2d1b77"

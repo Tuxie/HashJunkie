@@ -31,6 +31,7 @@ fn all_algorithms_match_known_vectors_for_small_bin() {
             "dropbox",
             "05fe36f555179feb8712eadb2a1cadac8c3c7378859f8dbeaa8a6ea224ea3658",
         ),
+        ("ed2k", "5ae257c47e9be1243ee32aabe408fb6b"),
         ("hidrive", "5b00669c480d5cffbdfa8bdba99561160f2d1b77"),
         ("mailru", "2b4639914e8e0e8f99d2a90a23801c7a87a089c1"),
         ("md5", "b2ea9f7fcea831a4a63b213f41a8855b"),
@@ -56,6 +57,28 @@ fn all_algorithms_match_known_vectors_for_small_bin() {
             .unwrap_or_else(|| panic!("missing algorithm: {name}"));
         assert_eq!(got, expected_hex, "mismatch for {name}");
     }
+}
+
+#[test]
+fn ed2k_matches_known_vectors_and_exact_block_boundary_rule() {
+    let cases: &[(&[u8], &str)] = &[
+        (b"", "31d6cfe0d16ae931b73c59d7e0c089c0"),
+        (b"abc", "a448017aaf21d8525fc10ae87aa6729d"),
+    ];
+
+    for (data, expected) in cases {
+        let mut h = MultiHasher::new(&[Algorithm::Ed2k]);
+        h.update(data);
+        assert_eq!(h.finalize()[&Algorithm::Ed2k], *expected);
+    }
+
+    let exact_block = vec![0xA5; 9_728_000];
+    let mut h = MultiHasher::new(&[Algorithm::Ed2k]);
+    h.update(&exact_block);
+    assert_eq!(
+        h.finalize()[&Algorithm::Ed2k],
+        "9cab445c0310e326f5c73a1953882e84"
+    );
 }
 
 #[test]

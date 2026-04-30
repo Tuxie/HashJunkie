@@ -172,6 +172,7 @@ fn make_hasher(alg: Algorithm) -> Box<dyn Hasher> {
         Algorithm::CidV1 => Box::new(CidHasher::v1()),
         Algorithm::Crc32 => Box::new(Crc32Hasher::new()),
         Algorithm::Dropbox => Box::new(DropboxHasher::new()),
+        Algorithm::Ed2k => Box::new(Ed2kHasher::new()),
         Algorithm::Hidrive => Box::new(HidriveHasher::new()),
         Algorithm::Mailru => Box::new(MailruHasher::new()),
         Algorithm::Md5 => Box::new(RustCryptoHasher::<md5::Md5>::new()),
@@ -205,7 +206,8 @@ mod tests {
         let mut h = MultiHasher::all();
         h.update(b"");
         let digests = h.finalize();
-        assert_eq!(digests.len(), 14);
+        assert_eq!(digests.len(), 15);
+        assert!(digests.contains_key(&Algorithm::Ed2k));
         assert!(!digests.contains_key(&Algorithm::Whirlpool));
     }
 

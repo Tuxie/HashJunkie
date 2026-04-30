@@ -32,6 +32,7 @@ const EMPTY_SHA256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b78
 const EMPTY_MD5 = "d41d8cd98f00b204e9800998ecf8427e";
 // SHA-256("abc") — verified via sha256sum and Python hashlib.
 const ABC_SHA256 = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+const ABC_ED2K = "a448017aaf21d8525fc10ae87aa6729d";
 
 test.if(hasAddon)(
   "HashJunkie with real native backend: sha256 of empty input matches known value",
@@ -44,12 +45,13 @@ test.if(hasAddon)(
 );
 
 test.if(hasAddon)(
-  "HashJunkie with real native backend: sha256 of known bytes matches expected",
+  "HashJunkie with real native backend: sha256 and ed2k of known bytes match expected",
   async () => {
-    const hj = new HashJunkie(["sha256"]);
+    const hj = new HashJunkie(["sha256", "ed2k"]);
     const data = new TextEncoder().encode("abc");
     const digests = await hashWith(hj, data);
     expect(digests.sha256).toBe(ABC_SHA256);
+    expect(digests.ed2k).toBe(ABC_ED2K);
   },
 );
 

@@ -7,6 +7,7 @@ pub enum Algorithm {
     CidV1,
     Crc32,
     Dropbox,
+    Ed2k,
     Hidrive,
     Mailru,
     Md5,
@@ -27,6 +28,7 @@ impl Algorithm {
             Algorithm::CidV1,
             Algorithm::Crc32,
             Algorithm::Dropbox,
+            Algorithm::Ed2k,
             Algorithm::Hidrive,
             Algorithm::Mailru,
             Algorithm::Md5,
@@ -47,6 +49,7 @@ impl Algorithm {
             Algorithm::CidV1,
             Algorithm::Crc32,
             Algorithm::Dropbox,
+            Algorithm::Ed2k,
             Algorithm::Hidrive,
             Algorithm::Mailru,
             Algorithm::Md5,
@@ -66,6 +69,7 @@ impl Algorithm {
             Algorithm::CidV1 => "cidv1",
             Algorithm::Crc32 => "crc32",
             Algorithm::Dropbox => "dropbox",
+            Algorithm::Ed2k => "ed2k",
             Algorithm::Hidrive => "hidrive",
             Algorithm::Mailru => "mailru",
             Algorithm::Md5 => "md5",
@@ -107,6 +111,7 @@ impl std::str::FromStr for Algorithm {
             "cidv1" => Ok(Algorithm::CidV1),
             "crc32" => Ok(Algorithm::Crc32),
             "dropbox" => Ok(Algorithm::Dropbox),
+            "ed2k" => Ok(Algorithm::Ed2k),
             "hidrive" => Ok(Algorithm::Hidrive),
             "mailru" => Ok(Algorithm::Mailru),
             "md5" => Ok(Algorithm::Md5),
@@ -129,13 +134,14 @@ mod tests {
 
     #[test]
     fn all_returns_default_algorithms_without_whirlpool() {
-        assert_eq!(Algorithm::all().len(), 14);
+        assert_eq!(Algorithm::all().len(), 15);
         assert!(!Algorithm::all().contains(&Algorithm::Whirlpool));
     }
 
     #[test]
-    fn supported_returns_all_15_algorithms_including_whirlpool() {
-        assert_eq!(Algorithm::supported().len(), 15);
+    fn supported_returns_all_16_algorithms_including_whirlpool() {
+        assert_eq!(Algorithm::supported().len(), 16);
+        assert!(Algorithm::supported().contains(&Algorithm::Ed2k));
         assert!(Algorithm::supported().contains(&Algorithm::Whirlpool));
     }
 

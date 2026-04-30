@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Added `ed2k` hash support for eDonkey/eMule/MLDonkey-compatible file hashes.
+
 ## 0.4.0 - 2026-04-30
 
 HashJunkie 0.4.0 is the IPFS CID and high-throughput hashing release.
@@ -27,4 +33,3 @@ HashJunkie 0.4.0 is the IPFS CID and high-throughput hashing release.
 - Fixed CIDv0 generation for large files so it matches `ipfs add --only-hash --nocopy --cid-version=0 -Q`.
 - Fixed release packaging so CLI archives are produced for Linux, macOS, and Windows and uploaded to the GitHub Release.
 - Fixed CI gates for version consistency, WASM regeneration, and 100% coverage expectations.
-

@@ -1,6 +1,6 @@
 # HashJunkie
 
-Multi-hash streaming library for Bun and Node.js. Computes any combination of 15 hash algorithms in a single pass — zero extra copies, no external system dependencies. Whirlpool is supported but opt-in because it is much slower than the other hashes.
+Multi-hash streaming library for Bun and Node.js. Computes any combination of 16 hash algorithms in a single pass — zero extra copies, no external system dependencies. Whirlpool is supported but opt-in because it is much slower than the other hashes.
 
 ```ts
 import { HashJunkie } from "@perw/hashjunkie";
@@ -20,6 +20,7 @@ const { sha256, blake3, md5 } = await hj.digests;
 | `cidv1` | IPFS CIDv1 for `ipfs add --nocopy --cid-version=1` |
 | `crc32` | CRC-32 |
 | `dropbox` | Dropbox content hash (SHA-256 of 4 MiB blocks) |
+| `ed2k` | eDonkey/eMule/MLDonkey ED2K file hash (MD4 over 9500 KiB blocks) |
 | `hidrive` | STRATO HiDrive hash (SHA-1 block tree) |
 | `mailru` | Mail.ru hash |
 | `md5` | MD5 |
@@ -31,7 +32,7 @@ const { sha256, blake3, md5 } = await hj.digests;
 | `xxh128` | xxHash 128-bit |
 | `xxh3` | xxHash 64-bit (xxh3) |
 
-Pass no arguments to get the default 14 hashes at once. Include `whirlpool` explicitly when you need a 1Fichier-compatible Whirlpool hash.
+Pass no arguments to get the default 15 hashes at once. Include `whirlpool` explicitly when you need a 1Fichier-compatible Whirlpool hash.
 
 ## Installation
 
@@ -122,8 +123,8 @@ import type { Algorithm, Digests } from "@perw/hashjunkie";
 
 ```ts
 type Algorithm =
-  | "blake3" | "cidv0" | "cidv1" | "crc32" | "dropbox" | "hidrive" | "mailru"
-  | "md5" | "quickxor" | "sha1" | "sha256" | "sha512"
+  | "blake3" | "cidv0" | "cidv1" | "crc32" | "dropbox" | "ed2k"
+  | "hidrive" | "mailru" | "md5" | "quickxor" | "sha1" | "sha256" | "sha512"
   | "whirlpool" | "xxh128" | "xxh3";
 
 type Digests = Record<Algorithm, string>;

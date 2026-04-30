@@ -16,16 +16,17 @@ const MOCK_DIGESTS: Digests = {
   cidv1: "bafkrei...",
   crc32: "bb",
   dropbox: "cc",
-  hidrive: "dd",
-  mailru: "ee",
-  md5: "ff",
-  quickxor: "00",
-  sha1: "11",
-  sha256: "22",
-  sha512: "33",
-  whirlpool: "44",
-  xxh128: "55",
-  xxh3: "66",
+  ed2k: "dd",
+  hidrive: "ee",
+  mailru: "ff",
+  md5: "00",
+  quickxor: "11",
+  sha1: "22",
+  sha256: "33",
+  sha512: "44",
+  whirlpool: "55",
+  xxh128: "66",
+  xxh3: "77",
 };
 
 function pickDigests(algorithms: readonly string[]): Digests {
@@ -84,14 +85,16 @@ async function pipe(hj: HashJunkie, inputs: Uint8Array[]): Promise<Uint8Array[]>
 // --- re-exports ---
 
 test("ALGORITHMS is re-exported from index", () => {
-  expect(ALGORITHMS).toHaveLength(15);
+  expect(ALGORITHMS).toHaveLength(16);
   expect(ALGORITHMS).toContain("sha256");
   expect(ALGORITHMS).toContain("cidv0");
   expect(ALGORITHMS).toContain("cidv1");
+  expect(ALGORITHMS).toContain("ed2k");
 });
 
 test("DEFAULT_ALGORITHMS is re-exported from index", () => {
-  expect(DEFAULT_ALGORITHMS).toHaveLength(14);
+  expect(DEFAULT_ALGORITHMS).toHaveLength(15);
+  expect(DEFAULT_ALGORITHMS).toContain("ed2k");
   expect(DEFAULT_ALGORITHMS).not.toContain("whirlpool");
 });
 
