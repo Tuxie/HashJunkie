@@ -19,6 +19,18 @@ permissions:
   contents: read
 
 jobs:
+  version-consistency:
+    name: Version consistency
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check version mirrors
+        run: node scripts/version-sync.mjs check
+
+      - name: Test version tooling
+        run: node --test scripts/version-sync.test.mjs scripts/update-homebrew-formula.test.mjs
+
   rust:
     name: Rust checks
     runs-on: ubuntu-latest
@@ -56,6 +68,13 @@ jobs:
           cargo +stable test
           --workspace
           --exclude hashjunkie-napi
+
+      - name: CID profiling binary compiles
+        run: >
+          cargo +stable check
+          -p hashjunkie-core
+          --features profile-ipfs-cid
+          --bin hashjunkie-cid-profile
 
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
@@ -176,9 +195,10 @@ jobs:
           #   npm/hashjunkie/*.ts/js  — TS/JS source (test files excluded below)
           #   Cargo.toml / Cargo.lock — dependency changes affect compiled output
           #   npm/*/package.json      — manifest changes affect published packages
+          #   VERSION / scripts/version-sync.mjs — release version source and gate
           #   .github/workflows/ci.yml — release gating and packaging metadata
           release_files=$(echo "$changed" \
-            | grep -E '^(crates/hashjunkie-cli/Cargo\.toml|crates/[^/]+/src/|crates/hashjunkie-napi/build\.rs|Cargo\.(toml|lock)|npm/hashjunkie/[^/]+\.(ts|js)|npm/[^/]+/package\.json|\.github/workflows/ci\.yml)' \
+            | grep -E '^(VERSION|scripts/version-sync\.mjs|crates/hashjunkie-cli/Cargo\.toml|crates/[^/]+/src/|crates/hashjunkie-napi/build\.rs|Cargo\.(toml|lock)|npm/hashjunkie/[^/]+\.(ts|js)|npm/[^/]+/package\.json|\.github/workflows/ci\.yml)' \
             | grep -vE '\.test\.ts$')
           if [ -n "$release_files" ]; then
             echo "release=true" >> "$GITHUB_OUTPUT"
@@ -189,20 +209,17 @@ jobs:
             echo "No release-relevant changes — skipping build and publish."
           fi
 
-      # Compute the concrete version once so CLI archive names, npm package
-      # stamping, git tags, and GitHub Release assets stay in lockstep.
+      # Read the concrete version once from VERSION so CLI archive names, npm
+      # package manifests, Cargo manifests, git tags, and GitHub Release assets
+      # stay in lockstep.
       - name: Determine next version
         id: version
         if: steps.release.outputs.release == 'true'
         run: |
           set -euo pipefail
+          node scripts/version-sync.mjs check
+          NEW=$(node scripts/version-sync.mjs print)
           LATEST=$(npm view @perw/hashjunkie version 2>/dev/null || echo "0.0.0")
-          case "$LATEST" in
-            0.2.*) AUTO=$(echo "$LATEST" | awk -F. '{print $1"."$2"."$3+1}') ;;
-            *)     AUTO=0.2.0 ;;
-          esac
-          MANUAL=$(jq -r .version npm/hashjunkie/package.json)
-          NEW=$(printf '%s\n%s\n' "$AUTO" "$MANUAL" | sort -V | tail -1)
           if [ "$NEW" = "$LATEST" ]; then
             SKIP=true
           else
@@ -210,13 +227,13 @@ jobs:
           fi
           echo "new=$NEW"       >> "$GITHUB_OUTPUT"
           echo "skip=$SKIP"     >> "$GITHUB_OUTPUT"
-          echo "npm latest: $LATEST; package.json: $MANUAL; publishing: $NEW; skip: $SKIP"
+          echo "npm latest: $LATEST; VERSION: $NEW; publishing: $NEW; skip: $SKIP"
 
   build-native:
     name: Build ${{ matrix.target }}
     # Only runs on main pushes that touch release-relevant source files.
     # PRs, docs, tests, and unrelated changes skip the expensive native builds.
-    needs: [rust, typescript, wasm-fresh-build, version]
+    needs: [version-consistency, rust, typescript, wasm-fresh-build, version]
     if: needs.version.outputs.release == 'true'
     strategy:
       fail-fast: false
@@ -258,16 +275,6 @@ jobs:
 
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
-
-      - name: Stamp Cargo crate versions
-        shell: bash
-        run: |
-          set -euo pipefail
-          VERSION="${{ needs.version.outputs.new }}"
-          for manifest in crates/hashjunkie-{core,cli,napi,wasm}/Cargo.toml; do
-            sed -i.bak -E "s/^version = \".*\"/version = \"${VERSION}\"/" "$manifest"
-            rm "$manifest.bak"
-          done
 
       - name: Build
         run: >
@@ -363,19 +370,10 @@ jobs:
           merge-multiple: true
           path: /tmp/cli-artifacts
 
-      - name: Stamp version into every package.json
+      - name: Prepare npm manifests for publish
         if: needs.version.outputs.skip != 'true'
         run: |
           V="${{ needs.version.outputs.new }}"
-          for f in \
-            npm/hashjunkie/package.json \
-            npm/hashjunkie-linux-x64-gnu/package.json \
-            npm/hashjunkie-linux-arm64-gnu/package.json \
-            npm/hashjunkie-darwin-x64/package.json \
-            npm/hashjunkie-darwin-arm64/package.json \
-            npm/hashjunkie-win32-x64-msvc/package.json; do
-            jq --arg v "$V" '.version=$v' "$f" > "$f.tmp" && mv "$f.tmp" "$f"
-          done
           # Replace workspace:* pins in the main package's optionalDependencies
           # with the concrete version being published, otherwise consumers get
           # unresolved "workspace:*" ranges.
@@ -448,3 +446,32 @@ jobs:
           gh release upload "v${{ needs.version.outputs.new }}" \
             /tmp/cli-artifacts/hashjunkie-cli-${{ needs.version.outputs.new }}-* \
             --clobber
+
+      - name: Checkout Homebrew tap
+        uses: actions/checkout@v6
+        with:
+          repository: Tuxie/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-tap
+
+      - name: Update Homebrew formula
+        run: |
+          set -euo pipefail
+          node scripts/update-homebrew-formula.mjs \
+            --formula homebrew-tap/Formula/hashjunkie.rb \
+            --artifacts-dir /tmp/cli-artifacts \
+            --version "${{ needs.version.outputs.new }}"
+
+      - name: Push Homebrew tap update
+        working-directory: homebrew-tap
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- Formula/hashjunkie.rb; then
+            echo "Homebrew formula already up to date."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/hashjunkie.rb
+          git commit -m "hashjunkie ${{ needs.version.outputs.new }}"
+          git push

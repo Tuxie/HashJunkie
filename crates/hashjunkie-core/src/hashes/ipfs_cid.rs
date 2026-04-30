@@ -1,5 +1,9 @@
 use digest::Digest;
 use sha2::Sha256;
+#[cfg(any(feature = "profile-ipfs-cid", test))]
+use std::sync::atomic::{AtomicU64, Ordering};
+#[cfg(any(feature = "profile-ipfs-cid", test))]
+use std::time::{Duration, Instant};
 
 use super::Hasher;
 
@@ -33,6 +37,74 @@ pub struct CidHasher {
     version: CidVersion,
 }
 
+#[cfg(any(feature = "profile-ipfs-cid", test))]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct CidProfile {
+    pub chunk_buffering_ns: u64,
+    pub raw_leaf_hashing_ns: u64,
+    pub dag_pb_encoding_ns: u64,
+    pub dag_pb_hashing_ns: u64,
+    pub cid_text_encoding_ns: u64,
+}
+
+#[cfg(any(feature = "profile-ipfs-cid", test))]
+#[derive(Clone, Copy)]
+enum ProfilePhase {
+    ChunkBuffering,
+    RawLeafHashing,
+    DagPbEncoding,
+    DagPbHashing,
+    CidTextEncoding,
+}
+
+#[cfg(any(feature = "profile-ipfs-cid", test))]
+static CHUNK_BUFFERING_NS: AtomicU64 = AtomicU64::new(0);
+#[cfg(any(feature = "profile-ipfs-cid", test))]
+static RAW_LEAF_HASHING_NS: AtomicU64 = AtomicU64::new(0);
+#[cfg(any(feature = "profile-ipfs-cid", test))]
+static DAG_PB_ENCODING_NS: AtomicU64 = AtomicU64::new(0);
+#[cfg(any(feature = "profile-ipfs-cid", test))]
+static DAG_PB_HASHING_NS: AtomicU64 = AtomicU64::new(0);
+#[cfg(any(feature = "profile-ipfs-cid", test))]
+static CID_TEXT_ENCODING_NS: AtomicU64 = AtomicU64::new(0);
+
+#[cfg(any(feature = "profile-ipfs-cid", test))]
+fn add_duration(counter: &AtomicU64, elapsed: Duration) {
+    let nanos = elapsed.as_nanos().min(u64::MAX as u128) as u64;
+    counter.fetch_add(nanos, Ordering::Relaxed);
+}
+
+#[cfg(any(feature = "profile-ipfs-cid", test))]
+fn record_profile(phase: ProfilePhase, started: Instant) {
+    match phase {
+        ProfilePhase::ChunkBuffering => add_duration(&CHUNK_BUFFERING_NS, started.elapsed()),
+        ProfilePhase::RawLeafHashing => add_duration(&RAW_LEAF_HASHING_NS, started.elapsed()),
+        ProfilePhase::DagPbEncoding => add_duration(&DAG_PB_ENCODING_NS, started.elapsed()),
+        ProfilePhase::DagPbHashing => add_duration(&DAG_PB_HASHING_NS, started.elapsed()),
+        ProfilePhase::CidTextEncoding => add_duration(&CID_TEXT_ENCODING_NS, started.elapsed()),
+    }
+}
+
+#[cfg(any(feature = "profile-ipfs-cid", test))]
+pub fn reset_profile() {
+    CHUNK_BUFFERING_NS.store(0, Ordering::Relaxed);
+    RAW_LEAF_HASHING_NS.store(0, Ordering::Relaxed);
+    DAG_PB_ENCODING_NS.store(0, Ordering::Relaxed);
+    DAG_PB_HASHING_NS.store(0, Ordering::Relaxed);
+    CID_TEXT_ENCODING_NS.store(0, Ordering::Relaxed);
+}
+
+#[cfg(any(feature = "profile-ipfs-cid", test))]
+pub fn take_profile() -> CidProfile {
+    CidProfile {
+        chunk_buffering_ns: CHUNK_BUFFERING_NS.load(Ordering::Relaxed),
+        raw_leaf_hashing_ns: RAW_LEAF_HASHING_NS.load(Ordering::Relaxed),
+        dag_pb_encoding_ns: DAG_PB_ENCODING_NS.load(Ordering::Relaxed),
+        dag_pb_hashing_ns: DAG_PB_HASHING_NS.load(Ordering::Relaxed),
+        cid_text_encoding_ns: CID_TEXT_ENCODING_NS.load(Ordering::Relaxed),
+    }
+}
+
 impl CidHasher {
     pub fn v0() -> Self {
         Self::new(CidVersion::V0)
@@ -60,7 +132,11 @@ impl Hasher for CidHasher {
         while !data.is_empty() {
             let remaining = CHUNK_SIZE - self.current.len();
             let take = remaining.min(data.len());
+            #[cfg(any(feature = "profile-ipfs-cid", test))]
+            let started = Instant::now();
             self.current.extend_from_slice(&data[..take]);
+            #[cfg(any(feature = "profile-ipfs-cid", test))]
+            record_profile(ProfilePhase::ChunkBuffering, started);
             data = &data[take..];
 
             if self.current.len() == CHUNK_SIZE {
@@ -76,16 +152,25 @@ impl Hasher for CidHasher {
             self.push_chunk(&chunk);
         }
 
-        let root = build_balanced_root(self.leaves);
-        match (self.version, root.codec) {
+        let root = build_balanced_root(self.leaves, self.version);
+        #[cfg(any(feature = "profile-ipfs-cid", test))]
+        let started = Instant::now();
+        let out = match (self.version, root.codec) {
             (CidVersion::V0, MULTICODEC_DAG_PB) => multihash_to_base58btc(&root.multihash),
             _ => cid_to_base32(&root.cid),
-        }
+        };
+        #[cfg(any(feature = "profile-ipfs-cid", test))]
+        record_profile(ProfilePhase::CidTextEncoding, started);
+        out
     }
 }
 
 fn raw_block(data: &[u8]) -> UnixFsBlock {
-    let (cid, multihash) = cid_bytes(MULTICODEC_RAW, data);
+    #[cfg(any(feature = "profile-ipfs-cid", test))]
+    let started = Instant::now();
+    let (cid, multihash) = cid_v1_bytes(MULTICODEC_RAW, data);
+    #[cfg(any(feature = "profile-ipfs-cid", test))]
+    record_profile(ProfilePhase::RawLeafHashing, started);
     UnixFsBlock {
         cid,
         multihash,
@@ -95,17 +180,19 @@ fn raw_block(data: &[u8]) -> UnixFsBlock {
     }
 }
 
-fn build_balanced_root(mut level: Vec<UnixFsBlock>) -> UnixFsBlock {
+fn build_balanced_root(mut level: Vec<UnixFsBlock>, version: CidVersion) -> UnixFsBlock {
     while level.len() > 1 {
         level = level
             .chunks(MAX_LINKS)
-            .map(unixfs_file_block)
+            .map(|children| unixfs_file_block(children, version))
             .collect::<Vec<_>>();
     }
     level.pop().expect("root block must exist")
 }
 
-fn unixfs_file_block(children: &[UnixFsBlock]) -> UnixFsBlock {
+fn unixfs_file_block(children: &[UnixFsBlock], version: CidVersion) -> UnixFsBlock {
+    #[cfg(any(feature = "profile-ipfs-cid", test))]
+    let started = Instant::now();
     let file_size = children.iter().map(|child| child.file_size).sum();
     let data = unixfs_file_data(file_size, children.iter().map(|child| child.file_size));
     let links = children
@@ -114,7 +201,9 @@ fn unixfs_file_block(children: &[UnixFsBlock]) -> UnixFsBlock {
         .collect::<Vec<_>>();
     let block = dag_pb_node(&data, &links);
     let child_tsize = children.iter().map(|child| child.tsize).sum::<u64>();
-    let (cid, multihash) = cid_bytes(MULTICODEC_DAG_PB, &block);
+    #[cfg(any(feature = "profile-ipfs-cid", test))]
+    record_profile(ProfilePhase::DagPbEncoding, started);
+    let (cid, multihash) = dag_pb_cid_bytes(&block, version);
     UnixFsBlock {
         cid,
         multihash,
@@ -124,7 +213,7 @@ fn unixfs_file_block(children: &[UnixFsBlock]) -> UnixFsBlock {
     }
 }
 
-fn cid_bytes(codec: u64, block: &[u8]) -> (Vec<u8>, Vec<u8>) {
+fn cid_v1_bytes(codec: u64, block: &[u8]) -> (Vec<u8>, Vec<u8>) {
     let digest = Sha256::digest(block);
     let mut multihash = Vec::with_capacity(2 + digest.len());
     encode_varint(MULTIHASH_SHA2_256, &mut multihash);
@@ -136,6 +225,18 @@ fn cid_bytes(codec: u64, block: &[u8]) -> (Vec<u8>, Vec<u8>) {
     encode_varint(codec, &mut out);
     out.extend_from_slice(&multihash);
     (out, multihash)
+}
+
+fn dag_pb_cid_bytes(block: &[u8], version: CidVersion) -> (Vec<u8>, Vec<u8>) {
+    #[cfg(any(feature = "profile-ipfs-cid", test))]
+    let started = Instant::now();
+    let (cid, multihash) = cid_v1_bytes(MULTICODEC_DAG_PB, block);
+    #[cfg(any(feature = "profile-ipfs-cid", test))]
+    record_profile(ProfilePhase::DagPbHashing, started);
+    match version {
+        CidVersion::V0 => (multihash.clone(), multihash),
+        CidVersion::V1 => (cid, multihash),
+    }
 }
 
 fn cid_to_base32(cid: &[u8]) -> String {
@@ -290,6 +391,15 @@ mod tests {
     }
 
     #[test]
+    fn cidv0_file_exceeding_single_node_fanout_matches_kubo_nocopy_default() {
+        let data = vec![0; CHUNK_SIZE * (MAX_LINKS + 1)];
+        assert_eq!(
+            cidv0(&data),
+            "QmVPDv3cu8fmHYUag4hCnNrUk2X9vMafgtZ6uFAjX1f2V2"
+        );
+    }
+
+    #[test]
     fn base58btc_preserves_leading_zero_bytes() {
         assert_eq!(multihash_to_base58btc(&[0, 0, 1]), "112");
     }
@@ -310,5 +420,22 @@ mod tests {
             Box::new(one).finalize_hex(),
             Box::new(chunked).finalize_hex()
         );
+    }
+
+    #[test]
+    fn profile_records_cid_hotspot_phases() {
+        reset_profile();
+        let data = vec![42; CHUNK_SIZE + 17];
+
+        let mut hasher = CidHasher::v0();
+        hasher.update(&data);
+        let _ = Box::new(hasher).finalize_hex();
+
+        let profile = take_profile();
+        assert!(profile.chunk_buffering_ns > 0);
+        assert!(profile.raw_leaf_hashing_ns > 0);
+        assert!(profile.dag_pb_encoding_ns > 0);
+        assert!(profile.dag_pb_hashing_ns > 0);
+        assert!(profile.cid_text_encoding_ns > 0);
     }
 }

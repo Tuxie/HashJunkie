@@ -14,9 +14,11 @@ pub use crc32::Crc32Hasher;
 
 mod ipfs_cid;
 pub use ipfs_cid::CidHasher;
+#[cfg(feature = "profile-ipfs-cid")]
+pub use ipfs_cid::{CidProfile, reset_profile, take_profile};
 
 mod xxhash;
-pub use xxhash::{Xxh128Hasher, Xxh3Hasher};
+pub use xxhash::{Xxh3Hasher, Xxh128Hasher};
 
 mod dropbox;
 pub use dropbox::DropboxHasher;

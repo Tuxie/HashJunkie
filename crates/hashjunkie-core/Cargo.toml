@@ -1,7 +1,16 @@
 [package]
 name    = "hashjunkie-core"
-version = "0.3.0"
-edition = "2021"
+version = "0.3.1"
+edition = "2024"
+
+[features]
+default = []
+profile-ipfs-cid = []
+
+[[bin]]
+name              = "hashjunkie-cid-profile"
+path              = "src/bin/cid_profile.rs"
+required-features = ["profile-ipfs-cid"]
 
 [dependencies]
 blake3      = { workspace = true }

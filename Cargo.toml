@@ -21,13 +21,13 @@ napi-build   = "2"
 napi-derive  = "2"
 serde_json   = "1"
 sha1         = "0.10"
-sha2         = "0.10"
+sha2         = { version = "0.10", features = ["asm"] }
 wasm-bindgen = "0.2"
 whirlpool    = "0.10"
 xxhash-rust  = { version = "0.8", features = ["xxh3"] }
 
 [profile.release]
-opt-level     = "z"
+opt-level     = 3
 lto           = true
 codegen-units = 1
 strip         = true

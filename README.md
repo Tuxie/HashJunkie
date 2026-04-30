@@ -200,6 +200,15 @@ cargo +nightly llvm-cov -p hashjunkie-core --branch --fail-under-lines 100
 cd npm/hashjunkie && bun test --coverage
 ```
 
+### Profile IPFS CID hashing
+
+```sh
+cargo run --release -p hashjunkie-core --features profile-ipfs-cid \
+  --bin hashjunkie-cid-profile -- cidv0 /path/to/file
+```
+
+The profiling binary prints total runtime plus time spent in chunk buffering, raw leaf hashing, DAG-PB encoding, DAG-PB hashing, and final CID text encoding.
+
 ### Rebuild the WASM blob
 
 Run this whenever `crates/hashjunkie-wasm/src/lib.rs` changes:

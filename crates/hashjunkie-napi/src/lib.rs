@@ -59,10 +59,12 @@ mod tests {
     fn parse_algorithms_empty_vec_returns_err() {
         let result = parse_algorithms(Some(vec![]));
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .reason
-            .contains("algorithms list must not be empty"));
+        assert!(
+            result
+                .unwrap_err()
+                .reason
+                .contains("algorithms list must not be empty")
+        );
     }
 }
 

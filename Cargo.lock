@@ -292,7 +292,7 @@ dependencies = [
 
 [[package]]
 name = "hashjunkie-cli"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "chrono",
  "clap",
@@ -302,7 +302,7 @@ dependencies = [
 
 [[package]]
 name = "hashjunkie-core"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "blake3",
  "crc32fast",
@@ -317,7 +317,7 @@ dependencies = [
 
 [[package]]
 name = "hashjunkie-napi"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "hashjunkie-core",
  "napi",
@@ -327,7 +327,7 @@ dependencies = [
 
 [[package]]
 name = "hashjunkie-wasm"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "hashjunkie-core",
  "js-sys",
@@ -629,6 +629,16 @@ dependencies = [
  "cfg-if",
  "cpufeatures 0.2.17",
  "digest",
+ "sha2-asm",
+]
+
+[[package]]
+name = "sha2-asm"
+version = "0.6.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b845214d6175804686b2bd482bcffe96651bb2d1200742b712003504a2dac1ab"
+dependencies = [
+ "cc",
 ]
 
 [[package]]

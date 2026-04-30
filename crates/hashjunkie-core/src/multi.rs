@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::hashes::{self, Hasher};
 use crate::Algorithm;
+use crate::hashes::{self, Hasher};
 
 pub struct MultiHasher {
     pairs: Vec<(Algorithm, Box<dyn Hasher>)>,

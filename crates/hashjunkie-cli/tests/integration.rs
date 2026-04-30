@@ -30,7 +30,7 @@ fn version_exits_zero_and_contains_version() {
     let output = bin().arg("--version").output().unwrap();
     assert!(output.status.success());
     let stdout = String::from_utf8(output.stdout).unwrap();
-    assert!(stdout.contains("0.3.0"));
+    assert!(stdout.contains(env!("CARGO_PKG_VERSION")));
 }
 
 #[test]
@@ -141,8 +141,14 @@ fn file_mode_all_14_hashes_correct_for_fixture() {
         hashes["sha256"],
         "785b0751fc2c53dc14a4ce3d800e69ef9ce1009eb327ccf458afe09c242c26c9"
     );
-    assert_eq!(hashes["sha512"],   "37f652be867f28ed033269cbba201af2112c2b3fd334a89fd2f757938ddee815787cc61d6e24a8a33340d0f7e86ffc058816b88530766ba6e231620a130b566c");
-    assert_eq!(hashes["whirlpool"],"d606b7f44bd288759f8869d880d9d4a2f159d739005e72d00f93b814e8c04e657f40c838e4d6f9030a8c9e0308a4e3b450246250243b2f09e09fa5a24761e26b");
+    assert_eq!(
+        hashes["sha512"],
+        "37f652be867f28ed033269cbba201af2112c2b3fd334a89fd2f757938ddee815787cc61d6e24a8a33340d0f7e86ffc058816b88530766ba6e231620a130b566c"
+    );
+    assert_eq!(
+        hashes["whirlpool"],
+        "d606b7f44bd288759f8869d880d9d4a2f159d739005e72d00f93b814e8c04e657f40c838e4d6f9030a8c9e0308a4e3b450246250243b2f09e09fa5a24761e26b"
+    );
     assert_eq!(hashes["xxh128"], "83885e853bb6640ca870f92984398d22");
     assert_eq!(hashes["xxh3"], "a870f92984398d22");
 }

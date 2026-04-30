@@ -1,6 +1,6 @@
 {
   "name": "@perw/hashjunkie-win32-x64-msvc",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Prebuilt hashjunkie native addon for Windows x64 (MSVC)",
   "os": ["win32"],
   "cpu": ["x64"],

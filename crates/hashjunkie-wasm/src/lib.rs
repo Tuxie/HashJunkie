@@ -117,7 +117,7 @@ impl WasmHasher {
 mod tests {
     use hashjunkie_core::Algorithm;
 
-    use super::{parse_algorithm_names, HasherCore};
+    use super::{HasherCore, parse_algorithm_names};
 
     #[test]
     fn parse_none_returns_all_algorithms() {
