@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "crates/hashjunkie-core",
+    "crates/hashjunkie",
     "crates/hashjunkie-cli",
     "crates/hashjunkie-napi",
     "crates/hashjunkie-wasm",

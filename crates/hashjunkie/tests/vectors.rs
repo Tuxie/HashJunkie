@@ -1,4 +1,4 @@
-use hashjunkie_core::{Algorithm, MultiHasher};
+use hashjunkie::{Algorithm, MultiHasher};
 
 fn hash_file(path: &str) -> std::collections::HashMap<Algorithm, String> {
     let data = std::fs::read(path).expect("fixture file must exist");

@@ -130,7 +130,7 @@ fn stdin_with_two_algorithms_json_output_is_sorted() {
 
 const FIXTURE: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../crates/hashjunkie-core/tests/fixtures/small.bin"
+    "/../../crates/hashjunkie/tests/fixtures/small.bin"
 );
 
 fn write_temp_file(name: &str, contents: &[u8]) -> String {

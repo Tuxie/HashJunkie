@@ -1,4 +1,4 @@
-use hashjunkie_core::Algorithm;
+use hashjunkie::Algorithm;
 use std::collections::BTreeMap;
 
 pub struct FileJsonEntry<'a> {

@@ -4,9 +4,7 @@ mod output;
 use args::{Args, Format};
 use chrono::{SecondsFormat, Utc};
 use clap::Parser;
-use hashjunkie_core::{
-    Algorithm, DigestValue, MultiHasher, PipelinedHashError, PipelinedMultiHasher,
-};
+use hashjunkie::{Algorithm, DigestValue, HashError, hash_reader as hash_reader_core};
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::{self, Read};
@@ -14,58 +12,23 @@ use std::path::Path;
 use std::process;
 use std::time::SystemTime;
 
-const CHUNK_SIZE: usize = 1024 * 1024;
-const _: () = assert!(CHUNK_SIZE >= 128 * 1024);
-
 /// Streams all bytes from `reader` through the given algorithms in large chunks.
 /// Returns a sorted map of algorithm name to digest string.
 fn hash_reader<R: Read>(
-    reader: &mut R,
+    reader: R,
     algorithms: &[Algorithm],
 ) -> io::Result<BTreeMap<String, DigestValue>> {
-    if algorithms.len() > 1 {
-        return hash_reader_pipelined(reader, algorithms);
-    }
-
-    let mut hasher = MultiHasher::new(algorithms);
-    let mut buf = vec![0u8; CHUNK_SIZE];
-    loop {
-        let n = reader.read(&mut buf)?;
-        if n == 0 {
-            break;
-        }
-        hasher.update_parallel(&buf[..n]);
-    }
-    let mut sorted = BTreeMap::new();
-    for (alg, digest) in hasher.finalize_digests() {
-        sorted.insert(alg.as_str().to_string(), digest);
-    }
+    let result = hash_reader_core(reader, algorithms).map_err(hash_error)?;
+    let sorted = result
+        .into_vec()
+        .into_iter()
+        .map(|(alg, digest)| (alg.as_str().to_string(), digest))
+        .collect();
     Ok(sorted)
 }
 
-fn pipeline_error(err: PipelinedHashError) -> io::Error {
+fn hash_error(err: HashError) -> io::Error {
     io::Error::other(err)
-}
-
-fn hash_reader_pipelined<R: Read>(
-    reader: &mut R,
-    algorithms: &[Algorithm],
-) -> io::Result<BTreeMap<String, DigestValue>> {
-    let mut hasher = PipelinedMultiHasher::new(algorithms);
-    let mut buf = vec![0u8; CHUNK_SIZE];
-    loop {
-        let n = reader.read(&mut buf)?;
-        if n == 0 {
-            break;
-        }
-        hasher.update(&buf[..n]).map_err(pipeline_error)?;
-    }
-
-    let mut sorted = BTreeMap::new();
-    for (alg, digest) in hasher.finalize_digests().map_err(pipeline_error)? {
-        sorted.insert(alg.as_str().to_string(), digest);
-    }
-    Ok(sorted)
 }
 
 fn display_digest_map(
@@ -355,10 +318,8 @@ mod tests {
 
         let pipelined = hash_reader(&mut data.as_slice(), &algs).unwrap();
 
-        let mut hasher = MultiHasher::new(&algs);
-        hasher.update(&data);
-        let expected = hasher
-            .finalize_digests()
+        let expected: BTreeMap<String, DigestValue> = hashjunkie::hash_bytes(&data, &algs)
+            .into_vec()
             .into_iter()
             .map(|(alg, digest)| (alg.as_str().to_string(), digest))
             .collect();

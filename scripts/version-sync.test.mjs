@@ -11,7 +11,7 @@ const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 async function makeFixture() {
   const root = await mkdtemp(join(tmpdir(), "hashjunkie-version-sync-"));
   const paths = [
-    "crates/hashjunkie-core/Cargo.toml",
+    "crates/hashjunkie/Cargo.toml",
     "crates/hashjunkie-cli/Cargo.toml",
     "crates/hashjunkie-napi/Cargo.toml",
     "crates/hashjunkie-wasm/Cargo.toml",

@@ -1,18 +1,15 @@
 #![deny(clippy::all)]
 
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::Read;
 
 use napi::bindgen_prelude::{AsyncTask, Buffer};
 use napi::{Env, Task};
 use napi_derive::napi;
 
-use hashjunkie_core::{
-    Algorithm, DigestValue, MultiHasher, PipelinedHashError, PipelinedMultiHasher,
+use hashjunkie::{
+    Algorithm, DigestValue, HashResult, MultiHasher, PipelinedHashError, PipelinedMultiHasher,
+    hash_file as hash_file_core,
 };
-
-const FILE_BUFFER_SIZE: usize = 16 * 1024 * 1024;
 
 fn parse_algorithms(names: Option<Vec<String>>) -> napi::Result<Vec<Algorithm>> {
     match names {
@@ -34,10 +31,11 @@ fn parse_algorithms(names: Option<Vec<String>>) -> napi::Result<Vec<Algorithm>> 
     }
 }
 
-fn digest_map(digests: HashMap<Algorithm, String>) -> HashMap<String, String> {
-    digests
+fn digest_map_from_result(result: HashResult) -> HashMap<String, String> {
+    result
+        .into_vec()
         .into_iter()
-        .map(|(alg, digest)| (alg.as_str().to_string(), digest))
+        .map(|(alg, digest)| (alg.as_str().to_string(), digest.standard().to_string()))
         .collect()
 }
 
@@ -87,19 +85,9 @@ fn hash_file(path: &str, algorithms: &[Algorithm]) -> napi::Result<HashMap<Strin
         )]));
     }
 
-    let mut file = File::open(path).map_err(|err| io_error(path, err))?;
-    let mut buffer = vec![0; FILE_BUFFER_SIZE];
-    let mut hasher = PipelinedMultiHasher::new(algorithms);
-
-    loop {
-        let read = file.read(&mut buffer).map_err(|err| io_error(path, err))?;
-        if read == 0 {
-            break;
-        }
-        hasher.update(&buffer[..read]).map_err(pipeline_error)?;
-    }
-
-    Ok(digest_map(hasher.finalize().map_err(pipeline_error)?))
+    let result = hash_file_core(path, algorithms)
+        .map_err(|err| napi::Error::from_reason(format!("failed to hash file {path}: {err}")))?;
+    Ok(digest_map_from_result(result))
 }
 
 pub struct HashFileTask {

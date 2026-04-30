@@ -15,7 +15,7 @@ HashJunkie is a high-performance multi-hash streaming library for Node.js and Bu
 ```
 hashjunkie/
 ├── crates/
-│   ├── hashjunkie-core/    # Pure Rust hash logic — no JS, no WASM, no napi deps
+│   ├── hashjunkie/         # Pure Rust library — no JS, no WASM, no napi deps
 │   ├── hashjunkie-napi/    # napi-rs wrapper → platform .node addon packages
 │   └── hashjunkie-cli/     # Standalone CLI binary
 ├── npm/
@@ -25,7 +25,7 @@ hashjunkie/
 └── .github/workflows/
 ```
 
-`hashjunkie-core` is the shared heart — both `hashjunkie-napi` and `hashjunkie-cli` depend on it. Never add napi-rs or WASM-specific code to `hashjunkie-core`.
+`hashjunkie` is the shared Rust library — both `hashjunkie-napi` and `hashjunkie-cli` depend on it. Never add napi-rs or WASM-specific code to `hashjunkie`.
 
 ---
 
@@ -43,7 +43,7 @@ Coverage is measured and checked in CI. Per-crate requirements:
 
 | Crate / package | Gate |
 |---|---|
-| `hashjunkie-core` | **100%** — pure logic, fully unit-testable |
+| `hashjunkie` | **100%** — pure logic, fully unit-testable |
 | `hashjunkie-cli` | ≥ 90% — I/O entry points aren't worth complicating for coverage |
 | `npm/hashjunkie` | **100%** (TypeScript) |
 
@@ -78,7 +78,7 @@ No regression test = no merge.
 
 - Format with `rustfmt` — run `cargo fmt` before every commit
 - Lint with `clippy` — run `cargo clippy -- -D warnings` (warnings are errors)
-- No `unwrap()` or `expect()` in library code (`hashjunkie-core`, `hashjunkie-napi`) — use proper error propagation
+- No `unwrap()` or `expect()` in library code (`hashjunkie`, `hashjunkie-napi`) — use proper error propagation
 - `unwrap()` is acceptable in tests and CLI where a panic produces a clear error
 - Prefer explicit types over inference at function boundaries
 

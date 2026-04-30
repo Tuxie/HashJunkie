@@ -8,7 +8,7 @@ const defaultRepoRoot =
   process.env.HASHJUNKIE_ROOT ?? dirname(dirname(fileURLToPath(import.meta.url)));
 
 const cargoManifests = [
-  "crates/hashjunkie-core/Cargo.toml",
+  "crates/hashjunkie/Cargo.toml",
   "crates/hashjunkie-cli/Cargo.toml",
   "crates/hashjunkie-napi/Cargo.toml",
   "crates/hashjunkie-wasm/Cargo.toml",
@@ -52,7 +52,7 @@ async function syncPackageVersion(root, path, version) {
 
 async function readCargoVersion(root, path) {
   const contents = await readFile(pathOf(root, path), "utf8");
-  const match = contents.match(/^version = "([^"]+)"$/m);
+  const match = contents.match(/^version\s*=\s*"([^"]+)"$/m);
   if (!match) {
     throw new Error(`${path}: missing package version`);
   }
@@ -63,7 +63,7 @@ async function syncCargoVersion(root, path, version) {
   const contents = await readFile(pathOf(root, path), "utf8");
   await writeFile(
     pathOf(root, path),
-    contents.replace(/^version = "([^"]+)"$/m, `version = "${version}"`),
+    contents.replace(/^version\s*=\s*"([^"]+)"$/m, `version = "${version}"`),
   );
 }
 

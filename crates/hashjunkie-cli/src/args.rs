@@ -1,5 +1,5 @@
 use clap::Parser;
-use hashjunkie_core::{Algorithm, UnknownAlgorithm};
+use hashjunkie::{Algorithm, UnknownAlgorithm};
 
 #[derive(Parser, Debug)]
 #[command(name = "hashjunkie", version, about = "Multi-algorithm file hasher")]

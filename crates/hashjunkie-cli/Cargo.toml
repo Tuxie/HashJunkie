@@ -10,5 +10,5 @@ path = "src/main.rs"
 [dependencies]
 chrono          = { version = "0.4.44", default-features = false, features = ["clock", "std"] }
 clap            = { workspace = true }
-hashjunkie-core = { path = "../hashjunkie-core" }
+hashjunkie      = { path = "../hashjunkie" }
 serde_json      = { workspace = true }

@@ -72,17 +72,17 @@ jobs:
       - name: CID profiling binary compiles
         run: >
           cargo +stable check
-          -p hashjunkie-core
+          -p hashjunkie
           --features profile-ipfs-cid
           --bin hashjunkie-cid-profile
 
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
 
-      - name: Coverage (100% gate on hashjunkie-core)
+      - name: Coverage (100% gate on hashjunkie)
         run: >
           cargo +nightly llvm-cov
-          -p hashjunkie-core
+          -p hashjunkie
           --branch
           --fail-under-lines 100
 

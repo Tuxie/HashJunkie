@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::Read;
 use std::time::Instant;
 
-use hashjunkie_core::hashes::{CidHasher, CidProfile, Hasher, reset_profile, take_profile};
+use hashjunkie::{Algorithm, CidProfile, MultiHasher, reset_profile, take_profile};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut args = env::args().skip(1);
@@ -20,14 +20,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::process::exit(2);
     }
 
-    let mut hasher: Box<dyn Hasher> = match path.as_str() {
-        "cidv0" => Box::new(CidHasher::v0()),
-        "cidv1" => Box::new(CidHasher::v1()),
+    let algorithm = match path.as_str() {
+        "cidv0" => Algorithm::CidV0,
+        "cidv1" => Algorithm::CidV1,
         other => {
             eprintln!("unknown CID version: {other}");
             std::process::exit(2);
         }
     };
+    let mut hasher = MultiHasher::new(&[algorithm]);
 
     let mut file = File::open(&file_path)?;
     let mut buffer = vec![0; 1024 * 1024];
@@ -43,7 +44,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         bytes += read as u64;
         hasher.update(&buffer[..read]);
     }
-    let cid = hasher.finalize_hex();
+    let cid = hasher
+        .finalize()
+        .remove(&algorithm)
+        .expect("CID profiler requested one algorithm");
     let total = total_started.elapsed();
     let profile = take_profile();
 

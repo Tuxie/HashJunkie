@@ -7,7 +7,7 @@ edition = "2024"
 crate-type = ["cdylib"]
 
 [dependencies]
-hashjunkie-core = { path = "../hashjunkie-core" }
+hashjunkie      = { path = "../hashjunkie" }
 blake3          = { workspace = true, features = ["mmap"] }
 napi            = { workspace = true }
 napi-derive     = { workspace = true }

@@ -2,12 +2,36 @@
 
 Compute multiple file hashes in a single streaming pass — no re-reading, no extra copies, no external dependencies.
 
-HashJunkie ships as two tools that share the same Rust core:
+HashJunkie ships as a reusable Rust crate plus two end-user tools that share the same core:
 
+- **`hashjunkie` Rust crate** — reusable multi-hash library for Rust applications
 - **`@perw/hashjunkie`** — TypeScript/JavaScript library for Bun and Node.js
 - **`hashjunkie` CLI** — standalone binary for shell scripts and pipelines
 
 Both support the same 19 algorithms and produce identical output. Whirlpool is supported but opt-in because it is much slower than the other hashes.
+
+---
+
+## Rust library
+
+```sh
+cargo add hashjunkie
+```
+
+```rust
+use hashjunkie::{Algorithm, hash_file};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let result = hash_file("video.mp4", &[Algorithm::Blake3, Algorithm::Sha256])?;
+
+    println!("blake3: {}", result.standard(Algorithm::Blake3).unwrap());
+    println!("sha256: {}", result.standard(Algorithm::Sha256).unwrap());
+
+    Ok(())
+}
+```
+
+Use `hash_bytes()` when data is already in memory, `hash_reader()` for any `std::io::Read` source, and `hash_file()` for paths. When several algorithms are requested, reader and file hashing use the same pipelined multi-hash engine as the CLI. Each result exposes the algorithm's standard visual form, lowercase hex of the raw digest bytes, and raw bytes.
 
 ---
 
@@ -187,7 +211,7 @@ The JS library loads the native addon if available, otherwise falls back to WASM
 ```
 hashjunkie/
 ├── crates/
-│   ├── hashjunkie-core/        # Rust hash logic — 19 supported algorithms
+│   ├── hashjunkie/             # Rust library — 19 supported algorithms
 │   ├── hashjunkie-napi/        # napi-rs wrapper → platform .node addons
 │   └── hashjunkie-cli/         # Standalone binary (clap, stdin + file modes)
 ├── npm/
@@ -197,7 +221,7 @@ hashjunkie/
     └── build-wasm.sh           # Builds WASM blob and embeds it in wasm_blob.ts
 ```
 
-`hashjunkie-core` is the shared heart — both the CLI and the JS addon depend on it. The core has no JS, napi-rs, or WASM dependencies.
+The `hashjunkie` Rust crate is the shared heart — both the CLI and the JS addon depend on it. The core library has no JS, napi-rs, or WASM dependencies.
 
 ---
 
@@ -227,8 +251,8 @@ bun test
 ### Coverage
 
 ```sh
-# hashjunkie-core is held to 100% line + branch coverage
-cargo +nightly llvm-cov -p hashjunkie-core --branch --fail-under-lines 100
+# hashjunkie is held to 100% line + branch coverage
+cargo +nightly llvm-cov -p hashjunkie --branch --fail-under-lines 100
 
 # TypeScript
 cd npm/hashjunkie && bun test --coverage
@@ -237,7 +261,7 @@ cd npm/hashjunkie && bun test --coverage
 ### Profile IPFS CID hashing
 
 ```sh
-cargo run --release -p hashjunkie-core --features profile-ipfs-cid \
+cargo run --release -p hashjunkie --features profile-ipfs-cid \
   --bin hashjunkie-cid-profile -- cidv0 /path/to/file
 ```
 

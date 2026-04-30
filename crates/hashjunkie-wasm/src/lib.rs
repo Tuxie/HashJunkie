@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use js_sys::{Object, Reflect, Uint8Array};
 use wasm_bindgen::prelude::*;
 
-use hashjunkie_core::{Algorithm, DigestValue, MultiHasher};
+use hashjunkie::{Algorithm, DigestValue, MultiHasher};
 
 pub(crate) fn parse_algorithm_names(names: Option<Vec<String>>) -> Result<Vec<Algorithm>, String> {
     match names {
@@ -133,7 +133,7 @@ impl WasmHasher {
 
 #[cfg(test)]
 mod tests {
-    use hashjunkie_core::Algorithm;
+    use hashjunkie::Algorithm;
 
     use super::{HasherCore, parse_algorithm_names};
 

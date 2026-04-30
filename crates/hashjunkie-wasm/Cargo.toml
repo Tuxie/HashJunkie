@@ -7,6 +7,6 @@ edition = "2024"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-hashjunkie-core = { path = "../hashjunkie-core" }
+hashjunkie      = { path = "../hashjunkie" }
 js-sys          = { workspace = true }
 wasm-bindgen    = { workspace = true }

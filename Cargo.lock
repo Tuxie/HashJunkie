@@ -386,17 +386,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "hashjunkie-cli"
-version = "0.5.2"
-dependencies = [
- "chrono",
- "clap",
- "hashjunkie-core",
- "serde_json",
-]
-
-[[package]]
-name = "hashjunkie-core"
+name = "hashjunkie"
 version = "0.5.2"
 dependencies = [
  "blake3",
@@ -414,11 +404,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "hashjunkie-cli"
+version = "0.5.2"
+dependencies = [
+ "chrono",
+ "clap",
+ "hashjunkie",
+ "serde_json",
+]
+
+[[package]]
 name = "hashjunkie-napi"
 version = "0.5.2"
 dependencies = [
  "blake3",
- "hashjunkie-core",
+ "hashjunkie",
  "napi",
  "napi-build",
  "napi-derive",
@@ -428,7 +428,7 @@ dependencies = [
 name = "hashjunkie-wasm"
 version = "0.5.2"
 dependencies = [
- "hashjunkie-core",
+ "hashjunkie",
  "js-sys",
  "wasm-bindgen",
 ]

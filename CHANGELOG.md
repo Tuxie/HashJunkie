@@ -9,6 +9,15 @@
 - Added `HashJunkie.hexdigests` and `HashJunkie.rawdigests` promises for the
   Node/Bun API while keeping `HashJunkie.digests` as the standard visual
   representation.
+- Added first-class Rust library helpers: `hash_bytes()`, `hash_reader()`,
+  `hash_file()`, default-algorithm variants, and the ordered `HashResult` type.
+
+### Changed
+
+- Renamed the reusable Rust crate from `hashjunkie-core`/`hashjunkie_core` to
+  `hashjunkie`.
+- Moved CLI reader hashing onto the shared Rust library API so Rust callers and
+  the CLI use the same pipelined multi-hash implementation.
 
 ## 0.5.2 - 2026-04-30
 
