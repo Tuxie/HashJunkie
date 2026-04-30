@@ -142,7 +142,7 @@ jobs:
           bun-version: latest
 
       - name: Install wasm-bindgen-cli
-        run: cargo install wasm-bindgen-cli --version 0.2.118
+        run: cargo install wasm-bindgen-cli --version 0.2.120
 
       - name: Build and embed fresh WASM
         run: ./scripts/build-wasm.sh

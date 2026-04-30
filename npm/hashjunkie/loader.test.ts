@@ -1,5 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
 import {
+  _defaultLoadBunFile,
   _defaultLoadNative,
   _defaultLoadWasm,
   _getPlatformPackage,
@@ -124,6 +125,10 @@ test("_defaultLoadWasm returns a working WASM backend", () => {
   expect(backend.finalize().sha256).toBe(
     "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
   );
+});
+
+test("_defaultLoadBunFile returns Bun.file in Bun", () => {
+  expect(_defaultLoadBunFile()).toBe(Bun.file);
 });
 
 // --- loadBackend with native addon ---
@@ -289,4 +294,31 @@ test("loadFileBackend falls back to hashing Bun.file(path).stream() when native 
       .unlink()
       .catch(() => {});
   }
+});
+
+test("loadFileBackend throws when native file hashing and Bun.file fallback are unavailable", async () => {
+  _setLoaders({
+    loadNative: () => null,
+    loadBunFile: () => null,
+    loadWasm: () => ({
+      update(_data: Uint8Array): void {},
+      finalize(): Digests {
+        return MOCK_DIGESTS;
+      },
+    }),
+  });
+
+  const backend = loadFileBackend();
+  await expect(backend.hashFile("/tmp/example.raw", ["sha256"])).rejects.toThrow(
+    "Bun.file() is required",
+  );
+});
+
+test("loadFileBackend throws when WASM fallback initialisation fails", async () => {
+  _setLoaders({ loadNative: () => null, loadWasm: () => null });
+
+  const backend = loadFileBackend();
+  await expect(backend.hashFile("/tmp/example.raw", ["sha256"])).rejects.toThrow(
+    "no backend available",
+  );
 });

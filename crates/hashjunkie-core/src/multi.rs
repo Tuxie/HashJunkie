@@ -278,6 +278,29 @@ mod tests {
     }
 
     #[test]
+    fn parallel_update_falls_back_for_small_chunks_and_single_algorithm() {
+        let small = vec![5; PARALLEL_UPDATE_MIN - 1];
+        let algs = &[Algorithm::Blake3, Algorithm::Sha256];
+
+        let mut sequential = MultiHasher::new(algs);
+        sequential.update(&small);
+
+        let mut fallback_small = MultiHasher::new(algs);
+        fallback_small.update_parallel(&small);
+
+        assert_eq!(fallback_small.finalize(), sequential.finalize());
+
+        let large = vec![9; PARALLEL_UPDATE_MIN + 1];
+        let mut sequential_single = MultiHasher::new(&[Algorithm::Sha256]);
+        sequential_single.update(&large);
+
+        let mut fallback_single = MultiHasher::new(&[Algorithm::Sha256]);
+        fallback_single.update_parallel(&large);
+
+        assert_eq!(fallback_single.finalize(), sequential_single.finalize());
+    }
+
+    #[test]
     fn pipelined_multi_hasher_matches_sequential_across_chunks() {
         let data = vec![19; 1024 * 1024 + 13];
         let algs = &[
@@ -300,6 +323,41 @@ mod tests {
         }
 
         assert_eq!(pipelined.finalize().unwrap(), sequential.finalize());
+    }
+
+    #[test]
+    fn pipelined_multi_hasher_profile_branch_still_finalizes() {
+        // SAFETY: this test restores the process-wide environment variable before
+        // returning; the variable is read only after worker threads have joined.
+        unsafe {
+            std::env::set_var("HASHJUNKIE_PROFILE_PIPELINE", "1");
+        }
+
+        let mut pipelined = PipelinedMultiHasher::new(&[Algorithm::Sha256]);
+        pipelined.update(b"abc").unwrap();
+        let result = pipelined.finalize();
+
+        // SAFETY: remove the test-only environment variable before returning.
+        unsafe {
+            std::env::remove_var("HASHJUNKIE_PROFILE_PIPELINE");
+        }
+
+        assert_eq!(
+            result.unwrap()[&Algorithm::Sha256],
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
+    }
+
+    #[test]
+    fn pipelined_error_display_messages_are_stable() {
+        assert_eq!(
+            PipelinedHashError::WorkerStopped.to_string(),
+            "hash worker stopped unexpectedly"
+        );
+        assert_eq!(
+            PipelinedHashError::WorkerPanicked.to_string(),
+            "hash worker panicked"
+        );
     }
 
     #[test]

@@ -67,19 +67,29 @@ export function _defaultLoadWasm(algorithms: Algorithm[]): Backend | null {
   return makeWasmBackend(algorithms);
 }
 
+/** Returns Bun.file when available so the file fallback remains unit-testable. */
+export function _defaultLoadBunFile(): typeof Bun.file | null {
+  return typeof Bun === "undefined" ? null : Bun.file;
+}
+
 type Loaders = {
   loadNative: () => NativeAddon | null;
   loadWasm: (algorithms: Algorithm[]) => Backend | null;
+  loadBunFile?: () => typeof Bun.file | null;
 };
 
 let _loaders: Loaders = {
   loadNative: _defaultLoadNative,
   loadWasm: _defaultLoadWasm,
+  loadBunFile: _defaultLoadBunFile,
 };
 
 /** Override loaders in tests. Always restore via afterEach. */
 export function _setLoaders(l: Loaders): void {
-  _loaders = l;
+  _loaders = {
+    ...l,
+    loadBunFile: l.loadBunFile ?? _defaultLoadBunFile,
+  };
 }
 
 /**
@@ -126,7 +136,8 @@ export function loadFileBackend(): FileBackend {
 
   return {
     async hashFile(path: string, algorithms: Algorithm[]): Promise<Digests> {
-      if (typeof Bun === "undefined") {
+      const bunFile = _loaders.loadBunFile?.() ?? null;
+      if (bunFile === null) {
         throw new Error(
           "hashjunkie: native file hashing is unavailable and Bun.file() is required for the WASM fallback",
         );
@@ -139,7 +150,7 @@ export function loadFileBackend(): FileBackend {
         );
       }
 
-      const reader = Bun.file(path).stream().getReader();
+      const reader = bunFile(path).stream().getReader();
       try {
         for (;;) {
           const { done, value } = await reader.read();

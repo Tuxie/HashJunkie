@@ -178,7 +178,7 @@ hashjunkie/
 
 - Rust stable + nightly (nightly is used only for branch coverage reports)
 - Bun ≥ 1.0
-- For WASM builds: `rustup target add wasm32-unknown-unknown` and `cargo install wasm-bindgen-cli --version 0.2.118`
+- For WASM builds: `rustup target add wasm32-unknown-unknown` and `cargo install wasm-bindgen-cli --version 0.2.120`
 
 ### Run all checks
 
