@@ -1,4 +1,4 @@
-import { WasmHasher, initSync } from "./hashjunkie_wasm.js";
+import { initSync, WasmHasher } from "./hashjunkie_wasm.js";
 import type { Algorithm, Backend, Digests } from "./types";
 import { WASM_BLOB } from "./wasm_blob";
 

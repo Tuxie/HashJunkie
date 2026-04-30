@@ -8,7 +8,7 @@ name = "hashjunkie"
 path = "src/main.rs"
 
 [dependencies]
-chrono          = { version = "0.4", default-features = false, features = ["clock", "std"] }
+chrono          = { version = "0.4.44", default-features = false, features = ["clock", "std"] }
 clap            = { workspace = true }
 hashjunkie-core = { path = "../hashjunkie-core" }
 serde_json      = { workspace = true }

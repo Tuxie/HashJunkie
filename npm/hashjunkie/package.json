@@ -25,7 +25,16 @@
   "publishConfig": {
     "access": "public"
   },
-  "keywords": ["hash", "checksum", "streaming", "blake3", "sha256", "xxhash", "wasm", "napi"],
+  "keywords": [
+    "hash",
+    "checksum",
+    "streaming",
+    "blake3",
+    "sha256",
+    "xxhash",
+    "wasm",
+    "napi"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/Tuxie/HashJunkie.git",
@@ -43,8 +52,8 @@
     "test:coverage": "bun test --coverage"
   },
   "devDependencies": {
-    "@biomejs/biome": "^1.9.0",
-    "bun-types": "^1.3.12"
+    "@biomejs/biome": "^2.4.13",
+    "bun-types": "^1.3.13"
   },
   "optionalDependencies": {
     "@perw/hashjunkie-linux-x64-gnu": "workspace:*",

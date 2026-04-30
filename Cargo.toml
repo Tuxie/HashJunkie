@@ -8,23 +8,22 @@ members = [
 resolver = "2"
 
 [workspace.dependencies]
-blake3       = "1"
-clap         = { version = "4", features = ["derive"] }
-crc32fast    = "1"
-digest       = "0.10"
-hex          = "0.4"
-js-sys       = "0.3"
-md-5         = "0.10"
-# Pinned to v2; napi v3 has breaking API changes — evaluate before upgrading
-napi         = { version = "2", features = ["napi4"] }
-napi-build   = "2"
-napi-derive  = "2"
-serde_json   = "1"
-sha1         = "0.10"
-sha2         = { version = "0.10", features = ["asm"] }
-wasm-bindgen = "0.2"
-whirlpool    = "0.10"
-xxhash-rust  = { version = "0.8", features = ["xxh3"] }
+blake3       = "1.8.5"
+clap         = { version = "4.6.1", features = ["derive"] }
+crc32fast    = "1.5.0"
+digest       = "0.11.2"
+hex          = "0.4.3"
+js-sys       = "0.3.97"
+md-5         = "0.11.0"
+napi         = { version = "3.8.6", features = ["napi4"] }
+napi-build   = "2.3.1"
+napi-derive  = "3.5.5"
+serde_json   = "1.0.149"
+sha1         = "0.11.0"
+sha2         = "0.11.0"
+wasm-bindgen = "0.2.120"
+whirlpool    = "0.11.0"
+xxhash-rust  = { version = "0.8.15", features = ["xxh3"] }
 
 [profile.release]
 opt-level     = 3

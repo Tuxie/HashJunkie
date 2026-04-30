@@ -1,6 +1,6 @@
 import { loadBackend } from "./loader";
-import { parseAlgorithms } from "./types";
 import type { Algorithm, Digests } from "./types";
+import { parseAlgorithms } from "./types";
 
 export { ALGORITHMS } from "./types";
 export type { Algorithm, Digests };

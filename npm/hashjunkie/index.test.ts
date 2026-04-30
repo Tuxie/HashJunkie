@@ -129,7 +129,7 @@ test("HashJunkie.digests rejects when the writable stream is aborted", async () 
   // abort() closes the writable side with an error; this.writable.closed rejects → rejectDigests fires
   await hj.writable.abort(abortError);
 
-  let caught: unknown = undefined;
+  let caught: unknown;
   try {
     await hj.digests;
   } catch (e) {
