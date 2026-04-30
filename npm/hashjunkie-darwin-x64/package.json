@@ -1,6 +1,6 @@
 {
   "name": "@perw/hashjunkie-darwin-x64",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Prebuilt hashjunkie native addon for macOS x64",
   "os": ["darwin"],
   "cpu": ["x64"],

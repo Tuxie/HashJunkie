@@ -100,12 +100,22 @@ fn file_name_for_path(path: &str) -> &str {
 }
 
 /// Hash any `Read` source and print the result. Extracted from `run_stdin` for testability.
-fn run_reader<R: Read>(reader: &mut R, algorithms: &[Algorithm], format: &Format) -> i32 {
+fn run_reader<R: Read>(
+    reader: &mut R,
+    algorithms: &[Algorithm],
+    format: &Format,
+    hashes_only: bool,
+) -> i32 {
     match hash_reader(reader, algorithms) {
         Ok(digests) => {
-            let out = match format {
-                Format::Json => output::format_as_json_object(&digests),
-                Format::Hex => output::format_as_hex_lines(&digests),
+            let out = if hashes_only {
+                output::format_as_hashes_only(algorithms, &digests)
+            } else {
+                match format {
+                    Format::Json => output::format_as_json_object(&digests),
+                    Format::Hex => output::format_as_hex_lines(&digests),
+                    Format::Line => output::format_as_file_line(algorithms, "-", 0, &digests),
+                }
             };
             println!("{}", out.trim_end_matches('\n'));
             0
@@ -117,9 +127,13 @@ fn run_reader<R: Read>(reader: &mut R, algorithms: &[Algorithm], format: &Format
     }
 }
 
-fn run_stdin(algorithms: &[Algorithm], format: &Format) -> i32 {
+fn run_stdin(algorithms: &[Algorithm], format: &Format, hashes_only: bool) -> i32 {
+    if hashes_only {
+        return run_reader(&mut io::stdin(), algorithms, format, true);
+    }
+
     match format {
-        Format::Hex => run_reader(&mut io::stdin(), algorithms, format),
+        Format::Hex => run_reader(&mut io::stdin(), algorithms, format, false),
         Format::Json => {
             let mut reader = CountingReader::new(io::stdin());
             match hash_reader(&mut reader, algorithms) {
@@ -140,15 +154,37 @@ fn run_stdin(algorithms: &[Algorithm], format: &Format) -> i32 {
                 }
             }
         }
+        Format::Line => {
+            let mut reader = CountingReader::new(io::stdin());
+            match hash_reader(&mut reader, algorithms) {
+                Ok(digests) => {
+                    println!(
+                        "{}",
+                        output::format_as_file_line(algorithms, "-", reader.bytes_read, &digests)
+                    );
+                    0
+                }
+                Err(e) => {
+                    eprintln!("{e}");
+                    1
+                }
+            }
+        }
     }
 }
 
-fn run_files(algorithms: &[Algorithm], files: &[String], format: &Format) -> i32 {
+fn run_files(
+    algorithms: &[Algorithm],
+    files: &[String],
+    format: &Format,
+    hashes_only: bool,
+) -> i32 {
     let mut results: Vec<(String, BTreeMap<String, String>)> = Vec::new();
     let mut json_metadata: Vec<(String, u64, String)> = Vec::new();
+    let mut sizes: Vec<u64> = Vec::new();
     let mut exit_code = 0;
 
-    for path in files {
+    for path in files.iter().take(if hashes_only { 1 } else { files.len() }) {
         match std::fs::metadata(path) {
             Ok(metadata) => match metadata.modified() {
                 Ok(modified) => match File::open(path) {
@@ -161,6 +197,7 @@ fn run_files(algorithms: &[Algorithm], files: &[String], format: &Format) -> i32
                                     format_system_time(modified),
                                 ));
                             }
+                            sizes.push(metadata.len());
                             results.push((path.clone(), digests));
                         }
                         Err(e) => {
@@ -186,6 +223,14 @@ fn run_files(algorithms: &[Algorithm], files: &[String], format: &Format) -> i32
     }
 
     if !results.is_empty() {
+        if hashes_only {
+            println!(
+                "{}",
+                output::format_as_hashes_only(algorithms, &results[0].1).trim_end_matches('\n')
+            );
+            return exit_code;
+        }
+
         let pairs: Vec<(&str, &BTreeMap<String, String>)> = results
             .iter()
             .map(|(path, digests)| (path.as_str(), digests))
@@ -208,6 +253,18 @@ fn run_files(algorithms: &[Algorithm], files: &[String], format: &Format) -> i32
                 output::format_as_file_json(&entries)
             }
             Format::Hex => output::format_as_file_hex(&pairs),
+            Format::Line => {
+                let entries: Vec<output::FileLineEntry<'_>> = results
+                    .iter()
+                    .zip(sizes.iter())
+                    .map(|((path, digests), size)| output::FileLineEntry {
+                        path,
+                        size: *size,
+                        digests,
+                    })
+                    .collect();
+                output::format_as_file_lines(&entries, algorithms)
+            }
         };
         println!("{}", out.trim_end_matches('\n'));
     }
@@ -227,9 +284,9 @@ fn main() {
     };
 
     let code = if args.files.is_empty() {
-        run_stdin(&algorithms, &args.format)
+        run_stdin(&algorithms, &args.format, args.hashes_only)
     } else {
-        run_files(&algorithms, &args.files, &args.format)
+        run_files(&algorithms, &args.files, &args.format, args.hashes_only)
     };
 
     process::exit(code);
@@ -281,7 +338,7 @@ mod tests {
     #[test]
     fn run_reader_returns_1_on_read_error() {
         let algs = [Algorithm::Sha256];
-        let code = run_reader(&mut ErrorReader, &algs, &Format::Json);
+        let code = run_reader(&mut ErrorReader, &algs, &Format::Json, false);
         assert_eq!(code, 1);
     }
 }

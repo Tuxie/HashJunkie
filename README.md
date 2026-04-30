@@ -75,6 +75,12 @@ hashjunkie -a sha256 *.bin
 
 # Plain text output
 hashjunkie -f hex file.bin
+
+# One line per file: hashes in requested order, then size and path
+hashjunkie -f line -a blake3,sha1,md5 *.mp3
+
+# Hashes only for the first input, useful in command substitution
+echo "b3hash: $(hashjunkie -1a blake3 file.bin)"
 ```
 
 **JSON output** (stdin):
@@ -97,6 +103,13 @@ md5: 900150983cd24fb0d6...
 sha256: ba7816bf8f01cfea41...
 ```
 
+**Line output** (`-f line`):
+```
+af1349b9f5f9a1a6a0... a9993e364706816aba3e25717850c26c9cd0d89d 900150983cd24fb0d6963f7d28e17f72 12345 /path/to/file.mp3
+```
+
+`line` format prints selected hashes in the order requested with `-a`, followed by file size and path. `-1` prints only the selected hashes, space-separated, for the first input.
+
 ### Hash stdin
 
 ```sh
@@ -109,6 +122,11 @@ cat file.bin | hashjunkie -a sha256 -f hex
 ```sh
 sha=$(hashjunkie -a sha256 -f hex file.bin | awk '{print $2}')
 echo "SHA-256: $sha"
+
+hashjunkie -f line -a blake3,sha1,md5 *.mp3 |
+  while read BLAKE3 SHA1 MD5 SIZE FILE; do
+    echo "$BLAKE3 $FILE"
+  done
 ```
 
 ---

@@ -14,6 +14,10 @@ pub struct Args {
     /// Output format
     #[arg(short = 'f', long = "format", default_value = "json")]
     pub format: Format,
+
+    /// Print only space-separated hashes for the first input
+    #[arg(short = '1')]
+    pub hashes_only: bool,
 }
 
 impl Args {
@@ -35,6 +39,7 @@ fn parse_algorithms(s: &str) -> Result<Vec<Algorithm>, UnknownAlgorithm> {
 pub enum Format {
     Json,
     Hex,
+    Line,
 }
 
 #[cfg(test)]
@@ -81,5 +86,18 @@ mod tests {
         let args = Args::parse_from(["hashjunkie", "-a", "sha256,md5"]);
         let algs = args.resolved_algorithms().unwrap();
         assert_eq!(algs, vec![Algorithm::Sha256, Algorithm::Md5]);
+    }
+
+    #[test]
+    fn parses_line_format() {
+        let args = Args::parse_from(["hashjunkie", "-f", "line"]);
+        assert!(matches!(args.format, Format::Line));
+    }
+
+    #[test]
+    fn parses_hashes_only_short_flag_stacked_with_algorithms() {
+        let args = Args::parse_from(["hashjunkie", "-1a", "blake3"]);
+        assert!(args.hashes_only);
+        assert_eq!(args.resolved_algorithms().unwrap(), vec![Algorithm::Blake3]);
     }
 }

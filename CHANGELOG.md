@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.2 - 2026-04-30
+
+HashJunkie 0.5.2 adds shell-friendly CLI output modes for pipelines and
+command substitution.
+
+### Added
+
+- Added CLI `line` output format (`-f line`) for shell pipelines and `-1` for
+  first-input hash-only command substitution.
+
 ## 0.5.1 - 2026-04-30
 
 HashJunkie 0.5.1 fixes `cidv0` compatibility with Kubo 0.41

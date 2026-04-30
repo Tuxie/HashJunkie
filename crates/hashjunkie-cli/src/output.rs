@@ -1,3 +1,4 @@
+use hashjunkie_core::Algorithm;
 use std::collections::BTreeMap;
 
 pub struct FileJsonEntry<'a> {
@@ -20,6 +21,49 @@ pub fn format_as_json_object(digests: &BTreeMap<String, String>) -> String {
 /// Example: `"md5: 900150...\nsha256: ba7816...\n"`
 pub fn format_as_hex_lines(digests: &BTreeMap<String, String>) -> String {
     digests.iter().map(|(k, v)| format!("{k}: {v}\n")).collect()
+}
+
+pub fn ordered_hash_values(
+    algorithms: &[Algorithm],
+    digests: &BTreeMap<String, String>,
+) -> Vec<String> {
+    algorithms
+        .iter()
+        .filter_map(|alg| digests.get(alg.as_str()).cloned())
+        .collect()
+}
+
+pub fn format_as_hashes_only(
+    algorithms: &[Algorithm],
+    digests: &BTreeMap<String, String>,
+) -> String {
+    ordered_hash_values(algorithms, digests).join(" ")
+}
+
+pub fn format_as_file_line(
+    algorithms: &[Algorithm],
+    path: &str,
+    size: u64,
+    digests: &BTreeMap<String, String>,
+) -> String {
+    let mut fields = ordered_hash_values(algorithms, digests);
+    fields.push(size.to_string());
+    fields.push(path.to_string());
+    fields.join(" ")
+}
+
+pub fn format_as_file_lines(files: &[FileLineEntry<'_>], algorithms: &[Algorithm]) -> String {
+    files
+        .iter()
+        .map(|entry| format_as_file_line(algorithms, entry.path, entry.size, entry.digests))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+pub struct FileLineEntry<'a> {
+    pub path: &'a str,
+    pub size: u64,
+    pub digests: &'a BTreeMap<String, String>,
 }
 
 fn file_entry_value(entry: &FileJsonEntry<'_>) -> serde_json::Value {
@@ -192,5 +236,28 @@ mod tests {
         assert!(hex.contains("\n\n"));
         assert!(hex.starts_with("a.bin\n"));
         assert!(hex.contains("\nb.bin\n"));
+    }
+
+    #[test]
+    fn hashes_only_uses_requested_algorithm_order() {
+        let hashes = format_as_hashes_only(&[Algorithm::Sha256, Algorithm::Md5], &sample());
+        assert_eq!(
+            hashes,
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad 900150983cd24fb0d6963f7d28e17f72"
+        );
+    }
+
+    #[test]
+    fn file_line_appends_size_and_path_after_requested_hashes() {
+        let line = format_as_file_line(
+            &[Algorithm::Sha256, Algorithm::Md5],
+            "file.bin",
+            3,
+            &sample(),
+        );
+        assert_eq!(
+            line,
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad 900150983cd24fb0d6963f7d28e17f72 3 file.bin"
+        );
     }
 }

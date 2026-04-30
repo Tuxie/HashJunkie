@@ -1,6 +1,6 @@
 {
   "name": "@perw/hashjunkie",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Multi-hash streaming library for Node.js and Bun",
   "main": "index.ts",
   "exports": {

@@ -1,5 +1,6 @@
 use std::io::Write;
 use std::process::Command;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 fn bin() -> Command {
     Command::new(env!("CARGO_BIN_EXE_hashjunkie"))
@@ -109,6 +110,16 @@ const FIXTURE: &str = concat!(
     "/../../crates/hashjunkie-core/tests/fixtures/small.bin"
 );
 
+fn write_temp_file(name: &str, contents: &[u8]) -> String {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let path = std::env::temp_dir().join(format!("hashjunkie-{name}-{unique}"));
+    std::fs::write(&path, contents).unwrap();
+    path.to_str().unwrap().to_string()
+}
+
 #[test]
 fn file_mode_default_18_hashes_correct_for_fixture() {
     let output = bin().arg(FIXTURE).output().unwrap();
@@ -213,6 +224,51 @@ fn file_mode_hex_format_contains_path_and_sha256() {
     assert!(stdout.contains(FIXTURE));
     assert!(
         stdout.contains("sha256: 785b0751fc2c53dc14a4ce3d800e69ef9ce1009eb327ccf458afe09c242c26c9")
+    );
+}
+
+#[test]
+fn file_mode_line_format_outputs_requested_hashes_size_and_path() {
+    let output = bin()
+        .args(["-f", "line", "-a", "blake3,sha1,md5", FIXTURE])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert_eq!(
+        stdout.trim_end(),
+        format!(
+            "{} {} {} {} {}",
+            "882179b8dbccd285cda241d968cfcccb3156c5edac2fa3761bb6eda7ff8cb172",
+            "5b00669c480d5cffbdfa8bdba99561160f2d1b77",
+            "b2ea9f7fcea831a4a63b213f41a8855b",
+            std::fs::metadata(FIXTURE).unwrap().len(),
+            FIXTURE
+        )
+    );
+}
+
+#[test]
+fn hashes_only_short_flag_outputs_requested_hashes_for_first_file_only() {
+    let first = write_temp_file("first", b"abc");
+    let second = write_temp_file("second", b"def");
+    let output = bin()
+        .args(["-1a", "blake3,sha1", &first, &second])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert_eq!(
+        stdout.trim_end(),
+        "6437b3ac38465133ffb63b75273a8db548c558465d79db03fd359c6cd5bd9d85 a9993e364706816aba3e25717850c26c9cd0d89d"
     );
 }
 
