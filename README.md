@@ -237,6 +237,8 @@ Update `CHANGELOG.md` before every release. The section for `VERSION` is used as
 
 Pushing release-relevant changes to `main` triggers the GitHub Actions release path. The workflow publishes the platform npm packages, publishes `@perw/hashjunkie`, tags `v{VERSION}`, uploads CLI archives to the GitHub Release, updates the GitHub Release notes from `CHANGELOG.md`, and updates `Tuxie/homebrew-tap` with the release version and archive SHA256s.
 
+Before pushing changes that add or edit GitHub Actions jobs, run the closest practical local `act` check first, for example `act -j <job-id>`. `act` will not prove cross-architecture builds, hosted macOS/Windows behavior, real uploads, publishing, release edits, or tap pushes, but it catches many workflow syntax, job wiring, shell, and missing-file mistakes before CI sees them.
+
 ### Commit style
 
 [Conventional Commits](https://www.conventionalcommits.org/) with plain English descriptions:
