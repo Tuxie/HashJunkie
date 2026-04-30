@@ -1,4 +1,4 @@
-import type { Algorithm, Backend, Digests } from "./types";
+import type { Algorithm, Backend, Digests, FileBackend } from "./types";
 import { makeWasmBackend } from "./wasm";
 
 /** Shape of the NativeHasher class exported by @perw/hashjunkie-* platform packages. */
@@ -9,7 +9,12 @@ type NativeHasherInstance = {
 
 type NativeAddon = {
   NativeHasher: new (algorithms: string[]) => NativeHasherInstance;
+  hashFile?: (path: string, algorithms: string[]) => Promise<Record<string, string>>;
 };
+
+function bufferView(data: Uint8Array): Buffer {
+  return Buffer.from(data.buffer, data.byteOffset, data.byteLength);
+}
 
 /**
  * Maps (platform, arch) to the npm platform package name.
@@ -87,7 +92,7 @@ export function loadBackend(algorithms: Algorithm[]): Backend {
     const inst = new addon.NativeHasher(algorithms);
     return {
       update(data: Uint8Array): void {
-        inst.update(Buffer.from(data));
+        inst.update(bufferView(data));
       },
       finalize(): Digests {
         // Trust assertion: the Rust layer always returns exactly the 13 Algorithm keys
@@ -102,4 +107,49 @@ export function loadBackend(algorithms: Algorithm[]): Backend {
   throw new Error(
     "hashjunkie: no backend available — native addon failed to load and WASM initialisation failed",
   );
+}
+
+/**
+ * Returns a backend optimized for hashing local files by path.
+ * Native packages hash files in Rust; WASM falls back to draining Bun.file().stream().
+ */
+export function loadFileBackend(): FileBackend {
+  const addon = _loaders.loadNative();
+  if (addon?.hashFile) {
+    return {
+      async hashFile(path: string, algorithms: Algorithm[]): Promise<Digests> {
+        // Trust assertion: the Rust layer returns exactly the requested Algorithm keys.
+        return (await addon.hashFile(path, algorithms)) as Digests;
+      },
+    };
+  }
+
+  return {
+    async hashFile(path: string, algorithms: Algorithm[]): Promise<Digests> {
+      if (typeof Bun === "undefined") {
+        throw new Error(
+          "hashjunkie: native file hashing is unavailable and Bun.file() is required for the WASM fallback",
+        );
+      }
+
+      const backend = _loaders.loadWasm(algorithms);
+      if (backend === null) {
+        throw new Error(
+          "hashjunkie: no backend available — native addon failed to load and WASM initialisation failed",
+        );
+      }
+
+      const reader = Bun.file(path).stream().getReader();
+      try {
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          backend.update(value);
+        }
+      } finally {
+        reader.releaseLock();
+      }
+      return backend.finalize();
+    },
+  };
 }

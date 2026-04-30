@@ -1,6 +1,6 @@
 {
   "name": "@perw/hashjunkie-linux-x64-gnu",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Prebuilt hashjunkie native addon for Linux x64 (glibc)",
   "os": ["linux"],
   "cpu": ["x64"],

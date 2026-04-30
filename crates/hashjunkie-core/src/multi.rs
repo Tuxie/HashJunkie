@@ -1,10 +1,127 @@
 use std::collections::{HashMap, HashSet};
+use std::fmt;
+use std::sync::{Arc, mpsc};
+use std::thread;
+use std::time::Duration;
+
+use rayon::prelude::*;
 
 use crate::Algorithm;
 use crate::hashes::{self, Hasher};
 
+const PARALLEL_UPDATE_MIN: usize = 128 * 1024;
+const PIPELINE_QUEUE_DEPTH: usize = 2;
+
 pub struct MultiHasher {
     pairs: Vec<(Algorithm, Box<dyn Hasher>)>,
+}
+
+#[derive(Debug)]
+pub enum PipelinedHashError {
+    WorkerStopped,
+    WorkerPanicked,
+}
+
+impl fmt::Display for PipelinedHashError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            PipelinedHashError::WorkerStopped => f.write_str("hash worker stopped unexpectedly"),
+            PipelinedHashError::WorkerPanicked => f.write_str("hash worker panicked"),
+        }
+    }
+}
+
+impl std::error::Error for PipelinedHashError {}
+
+pub struct PipelinedMultiHasher {
+    senders: Option<Vec<mpsc::SyncSender<Arc<[u8]>>>>,
+    workers: Vec<thread::JoinHandle<WorkerResult>>,
+}
+
+struct WorkerResult {
+    algorithm: Algorithm,
+    digest: String,
+    elapsed: Duration,
+}
+
+impl PipelinedMultiHasher {
+    pub fn new(algorithms: &[Algorithm]) -> Self {
+        let mut seen = HashSet::new();
+        let algorithms = algorithms.iter().copied().filter(|alg| seen.insert(*alg));
+
+        let mut senders = Vec::new();
+        let mut workers = Vec::new();
+
+        for algorithm in algorithms {
+            let (sender, receiver) = mpsc::sync_channel(PIPELINE_QUEUE_DEPTH);
+            senders.push(sender);
+            workers.push(thread::spawn(move || {
+                hash_one_algorithm(algorithm, receiver)
+            }));
+        }
+
+        Self {
+            senders: Some(senders),
+            workers,
+        }
+    }
+
+    pub fn update(&mut self, data: &[u8]) -> Result<(), PipelinedHashError> {
+        let chunk: Arc<[u8]> = Arc::from(data.to_vec().into_boxed_slice());
+        let senders = self
+            .senders
+            .as_ref()
+            .ok_or(PipelinedHashError::WorkerStopped)?;
+
+        for sender in senders {
+            sender
+                .send(Arc::clone(&chunk))
+                .map_err(|_| PipelinedHashError::WorkerStopped)?;
+        }
+
+        Ok(())
+    }
+
+    pub fn finalize(mut self) -> Result<HashMap<Algorithm, String>, PipelinedHashError> {
+        self.senders.take();
+
+        let mut digests = HashMap::new();
+        for worker in self.workers {
+            let result = worker
+                .join()
+                .map_err(|_| PipelinedHashError::WorkerPanicked)?;
+            if std::env::var_os("HASHJUNKIE_PROFILE_PIPELINE").is_some() {
+                eprintln!(
+                    "hashjunkie pipeline {:>9}: {:.3}s",
+                    result.algorithm,
+                    result.elapsed.as_secs_f64()
+                );
+            }
+            digests.insert(result.algorithm, result.digest);
+        }
+
+        Ok(digests)
+    }
+}
+
+fn hash_one_algorithm(algorithm: Algorithm, chunks: mpsc::Receiver<Arc<[u8]>>) -> WorkerResult {
+    let mut elapsed = Duration::ZERO;
+    let mut hasher = MultiHasher::new(&[algorithm]);
+    for chunk in chunks {
+        let started = std::time::Instant::now();
+        hasher.update(&chunk);
+        elapsed += started.elapsed();
+    }
+
+    let mut digests = hasher.finalize();
+    let digest = digests
+        .remove(&algorithm)
+        .expect("single-algorithm hasher returns its digest");
+    WorkerResult {
+        algorithm,
+        digest,
+        elapsed,
+    }
 }
 
 impl MultiHasher {
@@ -26,6 +143,17 @@ impl MultiHasher {
         for (_, hasher) in &mut self.pairs {
             hasher.update(data);
         }
+    }
+
+    pub fn update_parallel(&mut self, data: &[u8]) {
+        if self.pairs.len() < 2 || data.len() < PARALLEL_UPDATE_MIN {
+            self.update(data);
+            return;
+        }
+
+        self.pairs
+            .par_iter_mut()
+            .for_each(|(_, hasher)| hasher.update(data));
     }
 
     pub fn finalize(self) -> HashMap<Algorithm, String> {
@@ -73,11 +201,23 @@ mod tests {
     }
 
     #[test]
-    fn all_produces_all_15_algorithms() {
+    fn all_produces_default_algorithms_without_whirlpool() {
         let mut h = MultiHasher::all();
         h.update(b"");
         let digests = h.finalize();
-        assert_eq!(digests.len(), 15);
+        assert_eq!(digests.len(), 14);
+        assert!(!digests.contains_key(&Algorithm::Whirlpool));
+    }
+
+    #[test]
+    fn explicit_whirlpool_is_still_supported() {
+        let mut h = MultiHasher::new(&[Algorithm::Whirlpool]);
+        h.update(b"abc");
+        let digests = h.finalize();
+        assert_eq!(
+            digests[&Algorithm::Whirlpool],
+            "4e2448a4c6f486bb16b6562c73b4020bf3043e3a731bce721ae1b303d97e6d4c7181eebdb6c57e277d0e34957114cbd6c797fc9d95d8b582d225292076d4eef5"
+        );
     }
 
     #[test]
@@ -115,6 +255,51 @@ mod tests {
         let chunked = h2.finalize();
 
         assert_eq!(single, chunked);
+    }
+
+    #[test]
+    fn parallel_update_matches_single_update() {
+        let data = vec![7; PARALLEL_UPDATE_MIN * 2 + 13];
+        let algs = &[
+            Algorithm::Blake3,
+            Algorithm::Sha256,
+            Algorithm::Md5,
+            Algorithm::Xxh3,
+            Algorithm::Dropbox,
+        ];
+
+        let mut sequential = MultiHasher::new(algs);
+        sequential.update(&data);
+
+        let mut parallel = MultiHasher::new(algs);
+        parallel.update_parallel(&data);
+
+        assert_eq!(parallel.finalize(), sequential.finalize());
+    }
+
+    #[test]
+    fn pipelined_multi_hasher_matches_sequential_across_chunks() {
+        let data = vec![19; 1024 * 1024 + 13];
+        let algs = &[
+            Algorithm::Blake3,
+            Algorithm::Sha256,
+            Algorithm::Sha512,
+            Algorithm::CidV0,
+            Algorithm::CidV1,
+            Algorithm::Dropbox,
+        ];
+
+        let mut sequential = MultiHasher::new(algs);
+        for chunk in data.chunks(123_457) {
+            sequential.update(chunk);
+        }
+
+        let mut pipelined = PipelinedMultiHasher::new(algs);
+        for chunk in data.chunks(123_457) {
+            pipelined.update(chunk).unwrap();
+        }
+
+        assert_eq!(pipelined.finalize().unwrap(), sequential.finalize());
     }
 
     #[test]

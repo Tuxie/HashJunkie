@@ -1,7 +1,7 @@
 {
   "name": "@perw/hashjunkie",
-  "version": "0.3.1",
-  "description": "Multi-hash streaming library for Node.js and Bun — all hashes in one pass",
+  "version": "0.4.0",
+  "description": "Multi-hash streaming library for Node.js and Bun",
   "main": "index.ts",
   "exports": {
     ".": {

@@ -1,14 +1,32 @@
 use crate::hashes::Hasher;
 
+const PARALLEL_UPDATE_MIN: usize = 128 * 1024;
+const PARALLEL_UPDATE_BATCH: usize = 16 * 1024 * 1024;
+
 pub struct Blake3Hasher {
     inner: blake3::Hasher,
+    pending: Vec<u8>,
 }
 
 impl Blake3Hasher {
     pub fn new() -> Self {
         Self {
             inner: blake3::Hasher::new(),
+            pending: Vec::new(),
         }
+    }
+
+    fn flush_pending(&mut self) {
+        if self.pending.is_empty() {
+            return;
+        }
+
+        if self.pending.len() >= PARALLEL_UPDATE_MIN {
+            self.inner.update_rayon(&self.pending);
+        } else {
+            self.inner.update(&self.pending);
+        }
+        self.pending.clear();
     }
 }
 
@@ -20,10 +38,20 @@ impl Default for Blake3Hasher {
 
 impl Hasher for Blake3Hasher {
     fn update(&mut self, data: &[u8]) {
-        self.inner.update(data);
+        if data.len() >= PARALLEL_UPDATE_BATCH {
+            self.flush_pending();
+            self.inner.update_rayon(data);
+            return;
+        }
+
+        self.pending.extend_from_slice(data);
+        if self.pending.len() >= PARALLEL_UPDATE_BATCH {
+            self.flush_pending();
+        }
     }
 
-    fn finalize_hex(self: Box<Self>) -> String {
+    fn finalize_hex(mut self: Box<Self>) -> String {
+        self.flush_pending();
         hex::encode(self.inner.finalize().as_bytes())
     }
 }
@@ -72,5 +100,21 @@ mod tests {
             h.update(chunk);
         }
         assert_eq!(Box::new(h).finalize_hex(), single);
+    }
+
+    #[test]
+    fn parallel_batches_match_single_update() {
+        let data = (0..(PARALLEL_UPDATE_BATCH + PARALLEL_UPDATE_MIN + 17))
+            .map(|i| (i % 251) as u8)
+            .collect::<Vec<_>>();
+
+        let single = hash(&data);
+
+        let mut chunked = Blake3Hasher::new();
+        for chunk in data.chunks(64 * 1024) {
+            chunked.update(chunk);
+        }
+
+        assert_eq!(Box::new(chunked).finalize_hex(), single);
     }
 }

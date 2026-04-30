@@ -20,7 +20,7 @@ pub enum Algorithm {
 }
 
 impl Algorithm {
-    pub fn all() -> &'static [Algorithm] {
+    pub fn supported() -> &'static [Algorithm] {
         &[
             Algorithm::Blake3,
             Algorithm::CidV0,
@@ -35,6 +35,25 @@ impl Algorithm {
             Algorithm::Sha256,
             Algorithm::Sha512,
             Algorithm::Whirlpool,
+            Algorithm::Xxh128,
+            Algorithm::Xxh3,
+        ]
+    }
+
+    pub fn all() -> &'static [Algorithm] {
+        &[
+            Algorithm::Blake3,
+            Algorithm::CidV0,
+            Algorithm::CidV1,
+            Algorithm::Crc32,
+            Algorithm::Dropbox,
+            Algorithm::Hidrive,
+            Algorithm::Mailru,
+            Algorithm::Md5,
+            Algorithm::QuickXor,
+            Algorithm::Sha1,
+            Algorithm::Sha256,
+            Algorithm::Sha512,
             Algorithm::Xxh128,
             Algorithm::Xxh3,
         ]
@@ -109,13 +128,20 @@ mod tests {
     use std::str::FromStr;
 
     #[test]
-    fn all_returns_15_algorithms() {
-        assert_eq!(Algorithm::all().len(), 15);
+    fn all_returns_default_algorithms_without_whirlpool() {
+        assert_eq!(Algorithm::all().len(), 14);
+        assert!(!Algorithm::all().contains(&Algorithm::Whirlpool));
+    }
+
+    #[test]
+    fn supported_returns_all_15_algorithms_including_whirlpool() {
+        assert_eq!(Algorithm::supported().len(), 15);
+        assert!(Algorithm::supported().contains(&Algorithm::Whirlpool));
     }
 
     #[test]
     fn display_roundtrips_via_from_str() {
-        for alg in Algorithm::all() {
+        for alg in Algorithm::supported() {
             let s = alg.to_string();
             let parsed = Algorithm::from_str(&s).unwrap();
             assert_eq!(*alg, parsed);
@@ -129,7 +155,7 @@ mod tests {
 
     #[test]
     fn as_str_matches_display() {
-        for alg in Algorithm::all() {
+        for alg in Algorithm::supported() {
             assert_eq!(alg.as_str(), alg.to_string());
         }
     }

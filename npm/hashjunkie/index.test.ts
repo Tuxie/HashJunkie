@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
-import { ALGORITHMS, HashJunkie, hashBuffer, hashStream } from "./index";
+import {
+  ALGORITHMS,
+  DEFAULT_ALGORITHMS,
+  HashJunkie,
+  hashBuffer,
+  hashFile,
+  hashStream,
+} from "./index";
 import { _setLoaders } from "./loader";
 import type { Digests } from "./types";
 
@@ -21,16 +28,29 @@ const MOCK_DIGESTS: Digests = {
   xxh3: "66",
 };
 
+function pickDigests(algorithms: readonly string[]): Digests {
+  return Object.fromEntries(
+    algorithms.map((algorithm) => [algorithm, MOCK_DIGESTS[algorithm as keyof Digests]]),
+  ) as Digests;
+}
+
 // Install a working mock backend before every test so constructing HashJunkie succeeds.
 beforeEach(() => {
   _setLoaders({
     loadNative: () => ({
       NativeHasher: class {
+        readonly algorithms: string[];
+
+        constructor(algorithms: string[]) {
+          this.algorithms = algorithms;
+        }
+
         update(_data: Buffer): void {}
         finalize(): Record<string, string> {
-          return MOCK_DIGESTS;
+          return pickDigests(this.algorithms);
         }
       },
+      hashFile: async (_path: string, algorithms: string[]) => pickDigests(algorithms),
     }),
     loadWasm: () => null,
   });
@@ -70,6 +90,11 @@ test("ALGORITHMS is re-exported from index", () => {
   expect(ALGORITHMS).toContain("cidv1");
 });
 
+test("DEFAULT_ALGORITHMS is re-exported from index", () => {
+  expect(DEFAULT_ALGORITHMS).toHaveLength(14);
+  expect(DEFAULT_ALGORITHMS).not.toContain("whirlpool");
+});
+
 // --- passthrough ---
 
 test("HashJunkie passes all chunks through unchanged", async () => {
@@ -90,16 +115,17 @@ test("HashJunkie works with zero chunks (empty stream)", async () => {
 // --- digests ---
 
 test("HashJunkie.digests resolves with backend digests after stream close", async () => {
-  const hj = new HashJunkie(["sha256", "blake3"]);
+  const algorithms = ["sha256", "blake3"] as const;
+  const hj = new HashJunkie([...algorithms]);
   await pipe(hj, [new Uint8Array([0xca, 0xfe])]);
-  expect(await hj.digests).toEqual(MOCK_DIGESTS);
+  expect(await hj.digests).toEqual(pickDigests(algorithms));
 });
 
-test("HashJunkie with no constructor arg uses all algorithms", async () => {
+test("HashJunkie with no constructor arg uses default algorithms", async () => {
   const hj = new HashJunkie();
   await pipe(hj, []);
   const digests = await hj.digests;
-  expect(Object.keys(digests).sort()).toEqual([...ALGORITHMS].sort());
+  expect(Object.keys(digests).sort()).toEqual([...DEFAULT_ALGORITHMS].sort());
 });
 
 // --- constructor validation ---
@@ -162,7 +188,7 @@ test("HashJunkie supports write-close-digests without anyone reading readable", 
   const w = hj.writable.getWriter();
   await w.write(new TextEncoder().encode("hello"));
   await w.close();
-  expect(await hj.digests).toEqual(MOCK_DIGESTS);
+  expect(await hj.digests).toEqual(pickDigests(["sha256"]));
 });
 
 test("HashJunkie handles many writes without a reader (no back-pressure deadlock)", async () => {
@@ -170,24 +196,24 @@ test("HashJunkie handles many writes without a reader (no back-pressure deadlock
   const w = hj.writable.getWriter();
   for (let i = 0; i < 100; i++) await w.write(new Uint8Array([i]));
   await w.close();
-  expect(await hj.digests).toEqual(MOCK_DIGESTS);
+  expect(await hj.digests).toEqual(pickDigests(["sha256"]));
 });
 
 // --- hashBuffer helper ---
 
 test("hashBuffer resolves digests for a Uint8Array without stream boilerplate", async () => {
   const digests = await hashBuffer(new TextEncoder().encode("hello"), ["sha256"]);
-  expect(digests).toEqual(MOCK_DIGESTS);
+  expect(digests).toEqual(pickDigests(["sha256"]));
 });
 
-test("hashBuffer with no algorithm argument uses all algorithms", async () => {
+test("hashBuffer with no algorithm argument uses default algorithms", async () => {
   const digests = await hashBuffer(new Uint8Array([1, 2, 3]));
-  expect(Object.keys(digests).sort()).toEqual([...ALGORITHMS].sort());
+  expect(Object.keys(digests).sort()).toEqual([...DEFAULT_ALGORITHMS].sort());
 });
 
 test("hashBuffer handles an empty input", async () => {
   const digests = await hashBuffer(new Uint8Array(), ["sha256"]);
-  expect(digests).toEqual(MOCK_DIGESTS);
+  expect(digests).toEqual(pickDigests(["sha256"]));
 });
 
 // --- hashStream helper ---
@@ -201,15 +227,27 @@ test("hashStream drains a ReadableStream and resolves digests", async () => {
     },
   });
   const digests = await hashStream(stream, ["sha256"]);
-  expect(digests).toEqual(MOCK_DIGESTS);
+  expect(digests).toEqual(pickDigests(["sha256"]));
 });
 
-test("hashStream with no algorithm argument uses all algorithms", async () => {
+test("hashStream with no algorithm argument uses default algorithms", async () => {
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       controller.close();
     },
   });
   const digests = await hashStream(stream);
-  expect(Object.keys(digests).sort()).toEqual([...ALGORITHMS].sort());
+  expect(Object.keys(digests).sort()).toEqual([...DEFAULT_ALGORITHMS].sort());
+});
+
+// --- hashFile helper ---
+
+test("hashFile resolves digests for a path without stream boilerplate", async () => {
+  const digests = await hashFile("/tmp/example.raw", ["blake3"]);
+  expect(digests).toEqual(pickDigests(["blake3"]));
+});
+
+test("hashFile with no algorithm argument uses default algorithms", async () => {
+  const digests = await hashFile("/tmp/example.raw");
+  expect(Object.keys(digests).sort()).toEqual([...DEFAULT_ALGORITHMS].sort());
 });

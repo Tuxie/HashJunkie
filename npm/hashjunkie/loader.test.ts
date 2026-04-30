@@ -6,11 +6,14 @@ import {
   _setLoaders,
   _tryRequire,
   loadBackend,
+  loadFileBackend,
 } from "./loader";
 import type { Digests } from "./types";
 
 const MOCK_DIGESTS: Digests = {
   blake3: "aa",
+  cidv0: "Qm...",
+  cidv1: "bafkrei...",
   crc32: "bb",
   dropbox: "cc",
   hidrive: "dd",
@@ -152,7 +155,7 @@ test("loadBackend returns a backend that delegates update() and finalize() to th
   expect(backend.finalize()).toEqual(MOCK_DIGESTS);
 });
 
-test("loadBackend converts Uint8Array to Buffer before passing to native update", () => {
+test("loadBackend passes a Buffer view to native update", () => {
   let received: Buffer | null = null;
   _setLoaders({
     loadNative: () => ({
@@ -170,6 +173,28 @@ test("loadBackend converts Uint8Array to Buffer before passing to native update"
 
   loadBackend(["sha256"]).update(new Uint8Array([0x01, 0x02]));
   expect(received).toBeInstanceOf(Buffer);
+});
+
+test("loadBackend preserves Uint8Array byteOffset and byteLength for native update", () => {
+  let received: Buffer | null = null;
+  _setLoaders({
+    loadNative: () => ({
+      NativeHasher: class {
+        update(data: Buffer): void {
+          received = data;
+        }
+        finalize(): Record<string, string> {
+          return MOCK_DIGESTS;
+        }
+      },
+    }),
+    loadWasm: () => null,
+  });
+
+  const source = new Uint8Array([0xaa, 0x01, 0x02, 0xbb]);
+  loadBackend(["sha256"]).update(source.subarray(1, 3));
+
+  expect(Array.from(received ?? [])).toEqual([0x01, 0x02]);
 });
 
 test("loadBackend forwards algorithm list to NativeHasher constructor", () => {
@@ -213,4 +238,55 @@ test("loadBackend uses WASM backend when native returns null", () => {
 test("loadBackend throws Error when both loaders return null", () => {
   _setLoaders({ loadNative: () => null, loadWasm: () => null });
   expect(() => loadBackend(["sha256"])).toThrow("no backend available");
+});
+
+// --- loadFileBackend native path ---
+
+test("loadFileBackend delegates hashFile() to the native addon", async () => {
+  let receivedPath: string | null = null;
+  let receivedAlgorithms: string[] | null = null;
+  _setLoaders({
+    loadNative: () => ({
+      NativeHasher: class {
+        update(_data: Buffer): void {}
+        finalize(): Record<string, string> {
+          return MOCK_DIGESTS;
+        }
+      },
+      async hashFile(path: string, algorithms: string[]): Promise<Record<string, string>> {
+        receivedPath = path;
+        receivedAlgorithms = algorithms;
+        return MOCK_DIGESTS;
+      },
+    }),
+    loadWasm: () => null,
+  });
+
+  const backend = loadFileBackend();
+  expect(await backend.hashFile("/tmp/example.raw", ["blake3"])).toEqual(MOCK_DIGESTS);
+  expect(receivedPath).toBe("/tmp/example.raw");
+  expect(receivedAlgorithms).toEqual(["blake3"]);
+});
+
+test("loadFileBackend falls back to hashing Bun.file(path).stream() when native hashFile is unavailable", async () => {
+  _setLoaders({
+    loadNative: () => null,
+    loadWasm: () => ({
+      update(_data: Uint8Array): void {},
+      finalize(): Digests {
+        return MOCK_DIGESTS;
+      },
+    }),
+  });
+
+  const filePath = new URL(`./hashjunkie-loader-${Date.now()}.txt`, import.meta.url).pathname;
+  await Bun.write(filePath, "fallback");
+  try {
+    const backend = loadFileBackend();
+    expect(await backend.hashFile(filePath, ["sha256"])).toEqual(MOCK_DIGESTS);
+  } finally {
+    await Bun.file(filePath)
+      .unlink()
+      .catch(() => {});
+  }
 });

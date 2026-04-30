@@ -12,7 +12,7 @@ pub(crate) fn parse_algorithm_names(names: Option<Vec<String>>) -> Result<Vec<Al
             if names.is_empty() {
                 return Err(
                     "algorithms list must not be empty; omit the argument or pass null \
-                     to use all algorithms"
+                     to use default algorithms"
                         .to_string(),
                 );
             }
@@ -68,7 +68,8 @@ pub struct WasmHasher(HasherCore);
 impl WasmHasher {
     /// Create a new hasher. Pass an array of algorithm name strings (e.g.
     /// `['sha256', 'blake3']`) or omit / pass `null` / `undefined` to hash
-    /// with all 15 algorithms. Throws if any name is unrecognised or if an
+    /// with the default algorithms. Whirlpool is supported but opt-in because
+    /// it is much slower than the other hashes. Throws if any name is unrecognised or if an
     /// empty array is passed.
     #[wasm_bindgen(constructor)]
     pub fn new(algorithms: JsValue) -> Result<WasmHasher, JsValue> {
@@ -120,9 +121,10 @@ mod tests {
     use super::{HasherCore, parse_algorithm_names};
 
     #[test]
-    fn parse_none_returns_all_algorithms() {
+    fn parse_none_returns_default_algorithms() {
         let algs = parse_algorithm_names(None).unwrap();
         assert_eq!(algs.len(), Algorithm::all().len());
+        assert!(!algs.contains(&Algorithm::Whirlpool));
     }
 
     #[test]

@@ -44,7 +44,8 @@ export class WasmHasher {
     /**
      * Create a new hasher. Pass an array of algorithm name strings (e.g.
      * `['sha256', 'blake3']`) or omit / pass `null` / `undefined` to hash
-     * with all 15 algorithms. Throws if any name is unrecognised or if an
+     * with the default algorithms. Whirlpool is supported but opt-in because
+     * it is much slower than the other hashes. Throws if any name is unrecognised or if an
      * empty array is passed.
      * @param {any} algorithms
      */
@@ -58,7 +59,7 @@ export class WasmHasher {
             if (r2) {
                 throw takeObject(r1);
             }
-            this.__wbg_ptr = r0 >>> 0;
+            this.__wbg_ptr = r0;
             WasmHasherFinalization.register(this, this.__wbg_ptr, this);
             return this;
         } finally {
@@ -89,15 +90,15 @@ if (Symbol.dispose) WasmHasher.prototype[Symbol.dispose] = WasmHasher.prototype.
 function __wbg_get_imports() {
     const import0 = {
         __proto__: null,
-        __wbg___wbindgen_is_null_52ff4ec04186736f: function(arg0) {
+        __wbg___wbindgen_is_null_066086be3abe9bb3: function(arg0) {
             const ret = getObject(arg0) === null;
             return ret;
         },
-        __wbg___wbindgen_is_undefined_29a43b4d42920abd: function(arg0) {
+        __wbg___wbindgen_is_undefined_244a92c34d3b6ec0: function(arg0) {
             const ret = getObject(arg0) === undefined;
             return ret;
         },
-        __wbg___wbindgen_string_get_7ed5322991caaec5: function(arg0, arg1) {
+        __wbg___wbindgen_string_get_965592073e5d848c: function(arg0, arg1) {
             const obj = getObject(arg1);
             const ret = typeof(obj) === 'string' ? obj : undefined;
             var ptr1 = isLikeNone(ret) ? 0 : passStringToWasm0(ret, wasm.__wbindgen_export, wasm.__wbindgen_export2);
@@ -105,26 +106,26 @@ function __wbg_get_imports() {
             getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
             getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
         },
-        __wbg___wbindgen_throw_6b64449b9b9ed33c: function(arg0, arg1) {
+        __wbg___wbindgen_throw_9c75d47bf9e7731e: function(arg0, arg1) {
             throw new Error(getStringFromWasm0(arg0, arg1));
         },
-        __wbg_from_0dbf29f09e7fb200: function(arg0) {
+        __wbg_from_ff141b1e4c69b979: function(arg0) {
             const ret = Array.from(getObject(arg0));
             return addHeapObject(ret);
         },
-        __wbg_get_unchecked_17f53dad852b9588: function(arg0, arg1) {
+        __wbg_get_unchecked_be562b1421656321: function(arg0, arg1) {
             const ret = getObject(arg0)[arg1 >>> 0];
             return addHeapObject(ret);
         },
-        __wbg_length_3d4ecd04bd8d22f1: function(arg0) {
+        __wbg_length_0a6ce016dc1460b0: function(arg0) {
             const ret = getObject(arg0).length;
             return ret;
         },
-        __wbg_new_aa8d0fa9762c29bd: function() {
+        __wbg_new_2fad8ca02fd00684: function() {
             const ret = new Object();
             return addHeapObject(ret);
         },
-        __wbg_set_022bee52d0b05b19: function() { return handleError(function (arg0, arg1, arg2) {
+        __wbg_set_5337f8ac82364a3f: function() { return handleError(function (arg0, arg1, arg2) {
             const ret = Reflect.set(getObject(arg0), getObject(arg1), getObject(arg2));
             return ret;
         }, arguments); },
@@ -145,7 +146,7 @@ function __wbg_get_imports() {
 
 const WasmHasherFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_wasmhasher_free(ptr >>> 0, 1));
+    : new FinalizationRegistry(ptr => wasm.__wbg_wasmhasher_free(ptr, 1));
 
 function addHeapObject(obj) {
     if (heap_next === heap.length) heap.push(heap.length + 1);
@@ -171,8 +172,7 @@ function getDataViewMemory0() {
 }
 
 function getStringFromWasm0(ptr, len) {
-    ptr = ptr >>> 0;
-    return decodeText(ptr, len);
+    return decodeText(ptr >>> 0, len);
 }
 
 let cachedUint8ArrayMemory0 = null;
@@ -281,8 +281,9 @@ if (!('encodeInto' in cachedTextEncoder)) {
 
 let WASM_VECTOR_LEN = 0;
 
-let wasmModule, wasm;
+let wasmModule, wasmInstance, wasm;
 function __wbg_finalize_init(instance, module) {
+    wasmInstance = instance;
     wasm = instance.exports;
     wasmModule = module;
     cachedDataViewMemory0 = null;

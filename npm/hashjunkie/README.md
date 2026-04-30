@@ -1,6 +1,6 @@
 # HashJunkie
 
-Multi-hash streaming library for Bun and Node.js. Computes any combination of 15 hash algorithms in a single pass — zero extra copies, no external system dependencies.
+Multi-hash streaming library for Bun and Node.js. Computes any combination of 15 hash algorithms in a single pass — zero extra copies, no external system dependencies. Whirlpool is supported but opt-in because it is much slower than the other hashes.
 
 ```ts
 import { HashJunkie } from "@perw/hashjunkie";
@@ -27,11 +27,11 @@ const { sha256, blake3, md5 } = await hj.digests;
 | `sha1` | SHA-1 |
 | `sha256` | SHA-256 |
 | `sha512` | SHA-512 |
-| `whirlpool` | Whirlpool |
+| `whirlpool` | Whirlpool, opt-in |
 | `xxh128` | xxHash 128-bit |
 | `xxh3` | xxHash 64-bit (xxh3) |
 
-Pass no arguments to get all 15 hashes at once.
+Pass no arguments to get the default 14 hashes at once. Include `whirlpool` explicitly when you need a 1Fichier-compatible Whirlpool hash.
 
 ## Installation
 
@@ -41,10 +41,10 @@ bun add @perw/hashjunkie
 
 ## Usage
 
-Three entry points cover the common cases:
+Four entry points cover the common cases:
 
 ```ts
-import { HashJunkie, hashBuffer, hashStream } from "@perw/hashjunkie";
+import { HashJunkie, hashBuffer, hashFile, hashStream } from "@perw/hashjunkie";
 
 // 1. Pass-through: compute hashes while streaming bytes somewhere else.
 const hj = new HashJunkie(["sha256", "md5"]);
@@ -57,22 +57,62 @@ const digests = await hashBuffer(new TextEncoder().encode("hello world"));
 // 3. ReadableStream → digests; the stream is drained, the bytes are discarded.
 const fileDigests = await hashStream(Bun.file("big.bin").stream(), ["blake3", "sha256"]);
 
+// 4. Local file path → digests; native builds do file IO in Rust.
+const localFileDigests = await hashFile("big.bin", ["blake3", "sha256"]);
+
 // Read the typed algorithm list
-import { ALGORITHMS } from "@perw/hashjunkie";
+import { ALGORITHMS, DEFAULT_ALGORITHMS } from "@perw/hashjunkie";
 console.log(ALGORITHMS); // readonly ["blake3", "crc32", ...]
+console.log(DEFAULT_ALGORITHMS); // same list without "whirlpool"
 ```
 
 Most digests are lowercase hex strings. `cidv0` returns Kubo-compatible CIDv0 roots for multi-block DAG-PB files and CIDv1 raw-leaf strings for single-block files. `cidv1` returns lowercase base32 CIDv1 strings. The `digests` promise resolves when the writable side closes cleanly, and rejects if the stream is aborted.
+
+## Best practices
+
+Use `hashFile()` for local files when you only need digests. Native builds do file IO in Rust with large reads and avoid JavaScript stream overhead:
+
+```ts
+import { hashFile } from "@perw/hashjunkie";
+
+const digests = await hashFile("/media/card/DCIM/IMG_0001.CR3", [
+  "blake3",
+  "sha256",
+  "cidv1",
+]);
+```
+
+Use `HashJunkie` when bytes already need to flow somewhere else. It is a pass-through transform, so this computes hashes while preserving your existing pipeline:
+
+```ts
+import { HashJunkie } from "@perw/hashjunkie";
+
+const hasher = new HashJunkie(["blake3", "sha256"]);
+await Bun.file("clip.mov").stream().pipeThrough(hasher).pipeTo(uploadBody);
+const digests = await hasher.digests;
+```
+
+Use `hashStream()` when you have a stream and only want the digests. When you control the producer, feed multi-MiB `Uint8Array` chunks so the native backend can keep worker threads busy:
+
+```ts
+import { hashStream } from "@perw/hashjunkie";
+
+const digests = await hashStream(myReadableStream, ["blake3", "dropbox", "cidv1"]);
+```
+
+Specify the algorithms you actually need for latency-sensitive paths. The default set is convenient, but explicit lists avoid work you will not use. `whirlpool` is always opt-in and should only be requested for services that require it.
 
 ## How it works
 
 HashJunkie uses a Rust core via a native `.node` addon (napi-rs, statically linked) when running in Bun or Node.js, with an automatic fallback to a WebAssembly module when no native addon is available. The WASM module is embedded inline — no fetch, no extra files.
 
-The native path is **zero-copy**: each chunk is passed directly to the Rust hasher without intermediate buffers.
+`hashFile()` is the fastest local-file API. Native builds do file IO in Rust with large reads; the BLAKE3-only path uses BLAKE3's mmap+rayon whole-file implementation. WASM builds fall back to `Bun.file(path).stream()`.
+
+For `HashJunkie` and `hashStream()`, native builds pipeline multiple active hashers across worker threads while preserving byte order for each algorithm. Feed multi-MiB chunks when you control the stream source.
 
 ## Performance
 
-On an M2 MacBook Pro, hashing a 1 GiB file with all 13 pre-CID algorithms simultaneously runs at ~2.5 GiB/s with the native addon.
+On an M2 MacBook Pro, hashing a 1 GiB file with all pre-CID algorithms simultaneously runs at ~2.5 GiB/s with the native addon.
 
 ## Types
 
@@ -98,6 +138,7 @@ function hashStream(
   stream: ReadableStream<Uint8Array>,
   algorithms?: Algorithm[],
 ): Promise<Digests>;
+function hashFile(path: string, algorithms?: Algorithm[]): Promise<Digests>;
 ```
 
 ## License

@@ -1,22 +1,61 @@
+use rayon::prelude::*;
 use sha2::{Digest, Sha256};
 
 use crate::hashes::Hasher;
 
 pub const BLOCK_SIZE: usize = 4 * 1024 * 1024; // 4 MiB
+const PARALLEL_BLOCK_BATCH_SIZE: usize = 8;
+
+#[cfg(test)]
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+#[cfg(test)]
+static PARALLEL_BATCHES: AtomicUsize = AtomicUsize::new(0);
+
+#[cfg(test)]
+pub fn reset_profile() {
+    PARALLEL_BATCHES.store(0, Ordering::Relaxed);
+}
+
+#[cfg(test)]
+pub fn parallel_batches() -> usize {
+    PARALLEL_BATCHES.load(Ordering::Relaxed)
+}
 
 pub struct DropboxHasher {
     block_hashes: Vec<[u8; 32]>,
-    current_block: Sha256,
-    current_block_len: usize,
+    pending_blocks: Vec<Vec<u8>>,
+    current_block: Vec<u8>,
 }
 
 impl DropboxHasher {
     pub fn new() -> Self {
         Self {
             block_hashes: Vec::new(),
-            current_block: Sha256::new(),
-            current_block_len: 0,
+            pending_blocks: Vec::new(),
+            current_block: Vec::with_capacity(BLOCK_SIZE),
         }
+    }
+
+    fn push_owned_block(&mut self, block: Vec<u8>) {
+        self.pending_blocks.push(block);
+        if self.pending_blocks.len() >= PARALLEL_BLOCK_BATCH_SIZE {
+            self.flush_pending_blocks();
+        }
+    }
+
+    fn flush_pending_blocks(&mut self) {
+        let pending = std::mem::take(&mut self.pending_blocks);
+        #[cfg(test)]
+        if pending.len() > 1 {
+            PARALLEL_BATCHES.fetch_add(1, Ordering::Relaxed);
+        }
+        self.block_hashes.extend(
+            pending
+                .into_par_iter()
+                .map(|block| sha256_block(&block))
+                .collect::<Vec<_>>(),
+        );
     }
 }
 
@@ -29,32 +68,40 @@ impl Default for DropboxHasher {
 impl Hasher for DropboxHasher {
     fn update(&mut self, mut data: &[u8]) {
         while !data.is_empty() {
-            let remaining = BLOCK_SIZE - self.current_block_len;
+            if self.current_block.is_empty() && data.len() >= BLOCK_SIZE {
+                let (block, rest) = data.split_at(BLOCK_SIZE);
+                self.push_owned_block(block.to_vec());
+                data = rest;
+                continue;
+            }
+
+            let remaining = BLOCK_SIZE - self.current_block.len();
             let take = data.len().min(remaining);
-            self.current_block.update(&data[..take]);
-            self.current_block_len += take;
+            self.current_block.extend_from_slice(&data[..take]);
             data = &data[take..];
 
-            if self.current_block_len == BLOCK_SIZE {
-                let finished = std::mem::replace(&mut self.current_block, Sha256::new());
-                self.block_hashes.push(finished.finalize().into());
-                self.current_block_len = 0;
+            if self.current_block.len() == BLOCK_SIZE {
+                let block =
+                    std::mem::replace(&mut self.current_block, Vec::with_capacity(BLOCK_SIZE));
+                self.push_owned_block(block);
             }
         }
     }
 
-    fn finalize_hex(self: Box<Self>) -> String {
-        let Self {
-            mut block_hashes,
-            current_block,
-            current_block_len,
-        } = *self;
-
-        // Always finalize the last block — even if empty (handles empty file case)
-        // But skip if block is empty AND we already have complete blocks
-        if current_block_len > 0 || block_hashes.is_empty() {
-            block_hashes.push(current_block.finalize().into());
+    fn finalize_hex(mut self: Box<Self>) -> String {
+        if !self.current_block.is_empty()
+            || (self.block_hashes.is_empty() && self.pending_blocks.is_empty())
+        {
+            let block = std::mem::take(&mut self.current_block);
+            self.pending_blocks.push(block);
         }
+        self.flush_pending_blocks();
+
+        let Self {
+            block_hashes,
+            pending_blocks: _,
+            current_block: _,
+        } = *self;
 
         let mut outer = Sha256::new();
         for h in &block_hashes {
@@ -62,6 +109,10 @@ impl Hasher for DropboxHasher {
         }
         hex::encode(outer.finalize())
     }
+}
+
+fn sha256_block(block: &[u8]) -> [u8; 32] {
+    Sha256::digest(block).into()
 }
 
 #[cfg(test)]
@@ -155,5 +206,23 @@ mod tests {
 
         // Two-block and single-block hashes must differ
         assert_ne!(two_block_hash, single_block_hash);
+    }
+
+    #[test]
+    fn parallel_batches_match_single_update() {
+        let data = (0..(BLOCK_SIZE * (PARALLEL_BLOCK_BATCH_SIZE + 3) + 17))
+            .map(|i| (i % 251) as u8)
+            .collect::<Vec<_>>();
+        let single = hash(&data);
+
+        reset_profile();
+        let mut h = DropboxHasher::new();
+        for chunk in data.chunks(BLOCK_SIZE / 3 + 5) {
+            h.update(chunk);
+        }
+        let chunked = Box::new(h).finalize_hex();
+
+        assert_eq!(chunked, single);
+        assert!(parallel_batches() > 0);
     }
 }

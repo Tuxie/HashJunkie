@@ -1,4 +1,5 @@
 use digest::Digest;
+use rayon::prelude::*;
 use sha2::Sha256;
 #[cfg(any(feature = "profile-ipfs-cid", test))]
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -9,6 +10,7 @@ use super::Hasher;
 
 const CHUNK_SIZE: usize = 262_144;
 const MAX_LINKS: usize = 174;
+const PARALLEL_CHUNK_BATCH_SIZE: usize = 64;
 const CID_VERSION: u64 = 1;
 const MULTICODEC_RAW: u64 = 0x55;
 const MULTICODEC_DAG_PB: u64 = 0x70;
@@ -33,6 +35,7 @@ enum CidVersion {
 
 pub struct CidHasher {
     current: Vec<u8>,
+    pending_chunks: Vec<Vec<u8>>,
     leaves: Vec<UnixFsBlock>,
     version: CidVersion,
 }
@@ -117,13 +120,31 @@ impl CidHasher {
     fn new(version: CidVersion) -> Self {
         Self {
             current: Vec::new(),
+            pending_chunks: Vec::new(),
             leaves: Vec::new(),
             version,
         }
     }
 
     fn push_chunk(&mut self, chunk: &[u8]) {
-        self.leaves.push(raw_block(chunk));
+        self.pending_chunks.push(chunk.to_vec());
+    }
+
+    fn push_owned_chunk(&mut self, chunk: Vec<u8>) {
+        self.pending_chunks.push(chunk);
+        if self.pending_chunks.len() >= PARALLEL_CHUNK_BATCH_SIZE {
+            self.flush_pending_chunks();
+        }
+    }
+
+    fn flush_pending_chunks(&mut self) {
+        let pending = std::mem::take(&mut self.pending_chunks);
+        self.leaves.extend(
+            pending
+                .into_par_iter()
+                .map(|chunk| raw_block(&chunk))
+                .collect::<Vec<_>>(),
+        );
     }
 }
 
@@ -141,7 +162,7 @@ impl Hasher for CidHasher {
 
             if self.current.len() == CHUNK_SIZE {
                 let chunk = std::mem::take(&mut self.current);
-                self.push_chunk(&chunk);
+                self.push_owned_chunk(chunk);
             }
         }
     }
@@ -151,6 +172,7 @@ impl Hasher for CidHasher {
             let chunk = std::mem::take(&mut self.current);
             self.push_chunk(&chunk);
         }
+        self.flush_pending_chunks();
 
         let root = build_balanced_root(self.leaves, self.version);
         #[cfg(any(feature = "profile-ipfs-cid", test))]
@@ -183,7 +205,7 @@ fn raw_block(data: &[u8]) -> UnixFsBlock {
 fn build_balanced_root(mut level: Vec<UnixFsBlock>, version: CidVersion) -> UnixFsBlock {
     while level.len() > 1 {
         level = level
-            .chunks(MAX_LINKS)
+            .par_chunks(MAX_LINKS)
             .map(|children| unixfs_file_block(children, version))
             .collect::<Vec<_>>();
     }
@@ -420,6 +442,28 @@ mod tests {
             Box::new(one).finalize_hex(),
             Box::new(chunked).finalize_hex()
         );
+    }
+
+    #[test]
+    fn parallel_batches_preserve_chunk_order_across_update_boundaries() {
+        let data = (0..(CHUNK_SIZE * (PARALLEL_CHUNK_BATCH_SIZE + 3) + 17))
+            .map(|i| (i % 251) as u8)
+            .collect::<Vec<_>>();
+
+        for new_hasher in [CidHasher::v0, CidHasher::v1] {
+            let mut one = new_hasher();
+            one.update(&data);
+
+            let mut chunked = new_hasher();
+            for chunk in data.chunks(8191) {
+                chunked.update(chunk);
+            }
+
+            assert_eq!(
+                Box::new(one).finalize_hex(),
+                Box::new(chunked).finalize_hex()
+            );
+        }
     }
 
     #[test]

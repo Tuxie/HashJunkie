@@ -22,7 +22,8 @@ export class WasmHasher {
     /**
      * Create a new hasher. Pass an array of algorithm name strings (e.g.
      * `['sha256', 'blake3']`) or omit / pass `null` / `undefined` to hash
-     * with all 15 algorithms. Throws if any name is unrecognised or if an
+     * with the default algorithms. Whirlpool is supported but opt-in because
+     * it is much slower than the other hashes. Throws if any name is unrecognised or if an
      * empty array is passed.
      */
     constructor(algorithms: any);

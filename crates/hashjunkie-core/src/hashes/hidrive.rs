@@ -10,6 +10,7 @@
 /// - An empty file returns the zero-sum directly.
 /// - Up to 256 block sums are aggregated per level; full levels roll up into
 ///   the next level using a positional-embedding scheme.
+use rayon::prelude::*;
 use sha1::{Digest, Sha1};
 
 use crate::hashes::Hasher;
@@ -20,10 +21,28 @@ pub const BLOCK_SIZE: usize = 4096;
 const SUMS_PER_LEVEL: usize = 256;
 /// Size of a SHA-1 digest in bytes.
 const SHA1_SIZE: usize = 20;
+const PARALLEL_BLOCK_BATCH_SIZE: usize = 4096;
+const PARALLEL_BATCH_BYTES: usize = PARALLEL_BLOCK_BATCH_SIZE * BLOCK_SIZE;
 
 type Sum = [u8; SHA1_SIZE];
 
 const ZERO_SUM: Sum = [0u8; SHA1_SIZE];
+
+#[cfg(test)]
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+#[cfg(test)]
+static PARALLEL_BATCHES: AtomicUsize = AtomicUsize::new(0);
+
+#[cfg(test)]
+pub fn reset_profile() {
+    PARALLEL_BATCHES.store(0, Ordering::Relaxed);
+}
+
+#[cfg(test)]
+pub fn parallel_batches() -> usize {
+    PARALLEL_BATCHES.load(Ordering::Relaxed)
+}
 
 // ---------------------------------------------------------------------------
 // Level aggregation
@@ -119,12 +138,10 @@ pub struct HidriveHasher {
     levels: Vec<Level>,
     /// The last checksum written to any level (used for single-child final level).
     last_sum_written: Sum,
-    /// SHA-1 hasher for the current 4 096-byte block.
-    block_hash: Sha1,
-    /// Bytes written into `block_hash` so far.
-    bytes_in_block: usize,
-    /// Whether `block_hash` has seen only null bytes.
-    only_null_in_block: bool,
+    /// Complete blocks buffered for parallel leaf hashing.
+    pending_blocks: Vec<u8>,
+    /// Buffered bytes for the current partial 4 096-byte block.
+    current_block: Vec<u8>,
 }
 
 impl HidriveHasher {
@@ -132,9 +149,8 @@ impl HidriveHasher {
         Self {
             levels: Vec::new(),
             last_sum_written: ZERO_SUM,
-            block_hash: Sha1::new(),
-            bytes_in_block: 0,
-            only_null_in_block: true,
+            pending_blocks: Vec::with_capacity(PARALLEL_BATCH_BYTES),
+            current_block: Vec::with_capacity(BLOCK_SIZE),
         }
     }
 
@@ -157,6 +173,52 @@ impl HidriveHasher {
             level_idx += 1;
         }
     }
+
+    fn push_block_sums(&mut self, sums: impl IntoIterator<Item = Sum>) {
+        for sum in sums {
+            self.push_block_sum(sum);
+        }
+    }
+
+    fn push_complete_blocks(&mut self, blocks: &[u8]) {
+        debug_assert_eq!(blocks.len() % BLOCK_SIZE, 0);
+        #[cfg(test)]
+        if blocks.len() >= BLOCK_SIZE * 2 {
+            PARALLEL_BATCHES.fetch_add(1, Ordering::Relaxed);
+        }
+
+        let sums = blocks
+            .par_chunks(BLOCK_SIZE)
+            .with_min_len(64)
+            .map(block_sum)
+            .collect::<Vec<_>>();
+        self.push_block_sums(sums);
+    }
+
+    fn buffer_complete_blocks(&mut self, mut blocks: &[u8]) {
+        debug_assert_eq!(blocks.len() % BLOCK_SIZE, 0);
+        while !blocks.is_empty() {
+            let remaining = PARALLEL_BATCH_BYTES - self.pending_blocks.len();
+            let take = remaining.min(blocks.len());
+            self.pending_blocks.extend_from_slice(&blocks[..take]);
+            blocks = &blocks[take..];
+
+            if self.pending_blocks.len() == PARALLEL_BATCH_BYTES {
+                self.flush_pending_blocks();
+            }
+        }
+    }
+
+    fn flush_pending_blocks(&mut self) {
+        if self.pending_blocks.is_empty() {
+            return;
+        }
+        let pending = std::mem::replace(
+            &mut self.pending_blocks,
+            Vec::with_capacity(PARALLEL_BATCH_BYTES),
+        );
+        self.push_complete_blocks(&pending);
+    }
 }
 
 impl Default for HidriveHasher {
@@ -168,44 +230,48 @@ impl Default for HidriveHasher {
 impl Hasher for HidriveHasher {
     fn update(&mut self, mut data: &[u8]) {
         while !data.is_empty() {
-            let remaining = BLOCK_SIZE - self.bytes_in_block;
-            let take = data.len().min(remaining);
+            if !self.current_block.is_empty() {
+                let remaining = BLOCK_SIZE - self.current_block.len();
+                let take = data.len().min(remaining);
+                self.current_block.extend_from_slice(&data[..take]);
+                data = &data[take..];
 
-            // Track whether this slice is all nulls.
-            let slice_is_null = data[..take].iter().all(|&b| b == 0);
-            self.only_null_in_block = self.only_null_in_block && slice_is_null;
-
-            self.block_hash.update(&data[..take]);
-            self.bytes_in_block += take;
-            data = &data[take..];
-
-            if self.bytes_in_block == BLOCK_SIZE {
-                let sum: Sum = if self.only_null_in_block {
-                    ZERO_SUM
-                } else {
-                    self.block_hash.finalize_reset().into()
-                };
-                self.block_hash = Sha1::new();
-                self.bytes_in_block = 0;
-                self.only_null_in_block = true;
-                self.push_block_sum(sum);
+                if self.current_block.len() == BLOCK_SIZE {
+                    let block = std::mem::take(&mut self.current_block);
+                    self.current_block = Vec::with_capacity(BLOCK_SIZE);
+                    self.buffer_complete_blocks(&block);
+                }
+                continue;
             }
+
+            if data.len() >= BLOCK_SIZE {
+                let block_count = data.len() / BLOCK_SIZE;
+                let batch_blocks = block_count.min(PARALLEL_BLOCK_BATCH_SIZE);
+                let take = batch_blocks * BLOCK_SIZE;
+                self.buffer_complete_blocks(&data[..take]);
+                data = &data[take..];
+                continue;
+            }
+
+            let remaining = BLOCK_SIZE - self.current_block.len();
+            let take = data.len().min(remaining);
+            self.current_block.extend_from_slice(&data[..take]);
+            data = &data[take..];
         }
     }
 
     fn finalize_hex(mut self: Box<Self>) -> String {
         // Empty file → zero-sum.
-        if self.bytes_in_block == 0 && self.levels.is_empty() {
+        if self.current_block.is_empty() && self.pending_blocks.is_empty() && self.levels.is_empty()
+        {
             return hex::encode(ZERO_SUM);
         }
 
+        self.flush_pending_blocks();
+
         // Flush the partial block (if any).
-        if self.bytes_in_block > 0 {
-            let sum: Sum = if self.only_null_in_block {
-                ZERO_SUM
-            } else {
-                self.block_hash.finalize_reset().into()
-            };
+        if !self.current_block.is_empty() {
+            let sum = block_sum(&self.current_block);
             self.push_block_sum(sum);
         }
 
@@ -236,6 +302,14 @@ impl Hasher for HidriveHasher {
         };
 
         hex::encode(checksum)
+    }
+}
+
+fn block_sum(block: &[u8]) -> Sum {
+    if block.iter().all(|&b| b == 0) {
+        ZERO_SUM
+    } else {
+        Sha1::digest(block).into()
     }
 }
 
@@ -375,6 +449,24 @@ mod tests {
         assert_eq!(single, chunked);
         // Sanity: non-empty, not the zero-sum.
         assert_ne!(single, "0000000000000000000000000000000000000000");
+    }
+
+    #[test]
+    fn parallel_batches_match_single_update() {
+        let data = (0..(BLOCK_SIZE * (PARALLEL_BLOCK_BATCH_SIZE + 17) + 19))
+            .map(|i| (i % 251) as u8)
+            .collect::<Vec<_>>();
+        let single = hash(&data);
+
+        reset_profile();
+        let mut h = HidriveHasher::new();
+        for chunk in data.chunks(BLOCK_SIZE * 37 + 3) {
+            h.update(chunk);
+        }
+        let chunked = Box::new(h).finalize_hex();
+
+        assert_eq!(chunked, single);
+        assert!(parallel_batches() > 0);
     }
 
     // Regression: a null block followed by a non-null block must produce the

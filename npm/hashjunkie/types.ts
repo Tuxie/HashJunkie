@@ -18,6 +18,8 @@ export const ALGORITHMS = [
 
 export type Algorithm = (typeof ALGORITHMS)[number];
 
+export const DEFAULT_ALGORITHMS = ALGORITHMS.filter((algorithm) => algorithm !== "whirlpool");
+
 export type Digests = Record<Algorithm, string>;
 
 const ALGORITHM_SET = new Set<string>(ALGORITHMS);
@@ -28,15 +30,23 @@ export type Backend = {
   finalize(): Digests;
 };
 
+/** Backend interface for native file hashing. */
+export type FileBackend = {
+  hashFile(path: string, algorithms: Algorithm[]): Promise<Digests>;
+};
+
 /**
  * Validates and returns the algorithm list.
- * Returns all 15 algorithms when called with no argument.
+ * Returns the default algorithms when called with no argument. Whirlpool is
+ * supported but opt-in because it is much slower than the other hashes.
  * Throws TypeError for unknown algorithm names or an empty array.
  */
 export function parseAlgorithms(algorithms?: readonly string[]): Algorithm[] {
-  if (algorithms === undefined) return [...ALGORITHMS];
+  if (algorithms === undefined) return [...DEFAULT_ALGORITHMS];
   if (algorithms.length === 0) {
-    throw new TypeError("algorithms must not be empty; omit the argument to use all algorithms");
+    throw new TypeError(
+      "algorithms must not be empty; omit the argument to use default algorithms",
+    );
   }
   for (const alg of algorithms) {
     if (!ALGORITHM_SET.has(alg)) {

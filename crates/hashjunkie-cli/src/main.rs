@@ -4,7 +4,7 @@ mod output;
 use args::{Args, Format};
 use chrono::{SecondsFormat, Utc};
 use clap::Parser;
-use hashjunkie_core::{Algorithm, MultiHasher};
+use hashjunkie_core::{Algorithm, MultiHasher, PipelinedHashError, PipelinedMultiHasher};
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::{self, Read};
@@ -12,14 +12,19 @@ use std::path::Path;
 use std::process;
 use std::time::SystemTime;
 
-const CHUNK_SIZE: usize = 64 * 1024;
+const CHUNK_SIZE: usize = 1024 * 1024;
+const _: () = assert!(CHUNK_SIZE >= 128 * 1024);
 
-/// Streams all bytes from `reader` through the given algorithms in 64 KiB chunks.
+/// Streams all bytes from `reader` through the given algorithms in large chunks.
 /// Returns a sorted map of algorithm name to digest string.
 fn hash_reader<R: Read>(
     reader: &mut R,
     algorithms: &[Algorithm],
 ) -> io::Result<BTreeMap<String, String>> {
+    if algorithms.len() > 1 {
+        return hash_reader_pipelined(reader, algorithms);
+    }
+
     let mut hasher = MultiHasher::new(algorithms);
     let mut buf = vec![0u8; CHUNK_SIZE];
     loop {
@@ -27,10 +32,35 @@ fn hash_reader<R: Read>(
         if n == 0 {
             break;
         }
-        hasher.update(&buf[..n]);
+        hasher.update_parallel(&buf[..n]);
     }
     let mut sorted = BTreeMap::new();
     for (alg, hex) in hasher.finalize() {
+        sorted.insert(alg.as_str().to_string(), hex);
+    }
+    Ok(sorted)
+}
+
+fn pipeline_error(err: PipelinedHashError) -> io::Error {
+    io::Error::other(err)
+}
+
+fn hash_reader_pipelined<R: Read>(
+    reader: &mut R,
+    algorithms: &[Algorithm],
+) -> io::Result<BTreeMap<String, String>> {
+    let mut hasher = PipelinedMultiHasher::new(algorithms);
+    let mut buf = vec![0u8; CHUNK_SIZE];
+    loop {
+        let n = reader.read(&mut buf)?;
+        if n == 0 {
+            break;
+        }
+        hasher.update(&buf[..n]).map_err(pipeline_error)?;
+    }
+
+    let mut sorted = BTreeMap::new();
+    for (alg, hex) in hasher.finalize().map_err(pipeline_error)? {
         sorted.insert(alg.as_str().to_string(), hex);
     }
     Ok(sorted)
@@ -223,6 +253,29 @@ mod tests {
         let algs = [Algorithm::Sha256];
         let result = hash_reader(&mut ErrorReader, &algs);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn pipelined_hash_reader_matches_single_update() {
+        let data = vec![17; 1024 * 1024 + 13];
+        let algs = [
+            Algorithm::Blake3,
+            Algorithm::Sha256,
+            Algorithm::Sha512,
+            Algorithm::Dropbox,
+        ];
+
+        let pipelined = hash_reader(&mut data.as_slice(), &algs).unwrap();
+
+        let mut hasher = MultiHasher::new(&algs);
+        hasher.update(&data);
+        let expected = hasher
+            .finalize()
+            .into_iter()
+            .map(|(alg, digest)| (alg.as_str().to_string(), digest))
+            .collect();
+
+        assert_eq!(pipelined, expected);
     }
 
     #[test]

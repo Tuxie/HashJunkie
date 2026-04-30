@@ -44,14 +44,11 @@ fn all_algorithms_match_known_vectors_for_small_bin() {
             "sha512",
             "37f652be867f28ed033269cbba201af2112c2b3fd334a89fd2f757938ddee815787cc61d6e24a8a33340d0f7e86ffc058816b88530766ba6e231620a130b566c",
         ),
-        (
-            "whirlpool",
-            "d606b7f44bd288759f8869d880d9d4a2f159d739005e72d00f93b814e8c04e657f40c838e4d6f9030a8c9e0308a4e3b450246250243b2f09e09fa5a24761e26b",
-        ),
         ("xxh128", "83885e853bb6640ca870f92984398d22"),
         ("xxh3", "a870f92984398d22"),
     ];
 
+    assert!(!digests.contains_key(&Algorithm::Whirlpool));
     for (name, expected_hex) in expected {
         let alg: Algorithm = name.parse().unwrap();
         let got = digests
@@ -59,4 +56,16 @@ fn all_algorithms_match_known_vectors_for_small_bin() {
             .unwrap_or_else(|| panic!("missing algorithm: {name}"));
         assert_eq!(got, expected_hex, "mismatch for {name}");
     }
+}
+
+#[test]
+fn explicit_whirlpool_matches_known_vector_for_small_bin() {
+    let data = std::fs::read("tests/fixtures/small.bin").expect("fixture file must exist");
+    let mut h = MultiHasher::new(&[Algorithm::Whirlpool]);
+    h.update(&data);
+    let digests = h.finalize();
+    assert_eq!(
+        digests[&Algorithm::Whirlpool],
+        "d606b7f44bd288759f8869d880d9d4a2f159d739005e72d00f93b814e8c04e657f40c838e4d6f9030a8c9e0308a4e3b450246250243b2f09e09fa5a24761e26b"
+    );
 }

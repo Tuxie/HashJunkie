@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { HashJunkie } from "./index";
+import { HashJunkie, hashBuffer, hashFile } from "./index";
 
 // Skip when the native addon is not present (CI without pre-built artifact).
 const NODE_FILE = join(import.meta.dir, "hashjunkie.linux-x64-gnu.node");
@@ -76,5 +76,26 @@ test.if(hasAddon)(
     ]);
     const combined = new Uint8Array(out.flatMap((c) => [...c]));
     expect(combined).toEqual(input);
+  },
+);
+
+test.if(hasAddon)(
+  "hashFile with real native backend matches hashBuffer for a local file",
+  async () => {
+    const path = join(import.meta.dir, `hashjunkie-integration-${Date.now()}.bin`);
+    const data = new TextEncoder().encode("abc");
+    await Bun.write(path, data);
+    try {
+      const [fromFile, fromBuffer] = await Promise.all([
+        hashFile(path, ["sha256", "blake3"]),
+        hashBuffer(data, ["sha256", "blake3"]),
+      ]);
+      expect(fromFile.sha256).toBe(fromBuffer.sha256);
+      expect(fromFile.blake3).toBe(fromBuffer.blake3);
+    } finally {
+      await Bun.file(path)
+        .unlink()
+        .catch(() => {});
+    }
   },
 );

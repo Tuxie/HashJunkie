@@ -7,7 +7,7 @@ HashJunkie ships as two tools that share the same Rust core:
 - **`@perw/hashjunkie`** — TypeScript/JavaScript library for Bun and Node.js
 - **`hashjunkie` CLI** — standalone binary for shell scripts and pipelines
 
-Both support the same 15 algorithms and produce identical output.
+Both support the same 15 algorithms and produce identical output. Whirlpool is supported but opt-in because it is much slower than the other hashes.
 
 ---
 
@@ -36,11 +36,13 @@ await w.write(new TextEncoder().encode("hello"));
 await w.close();
 const { sha256 } = await hj.digests;  // lowercase hex string
 
-// No arguments = all 15 algorithms at once
+// No arguments = the default 14 algorithms at once; add "whirlpool" explicitly when needed
 const hj2 = new HashJunkie();
 ```
 
 **Full API documentation:** [npm/hashjunkie/README.md](npm/hashjunkie/README.md)
+
+For best performance in Bun/Node, prefer `hashFile()` for local files, `HashJunkie` when bytes already need to stream onward, and explicit algorithm lists on latency-sensitive paths.
 
 ---
 
@@ -59,29 +61,32 @@ Release assets are published with these archive names:
 ### Hash files
 
 ```sh
-# All 15 algorithms, JSON output (default)
+# Default 14 algorithms, JSON output
 hashjunkie file.bin
 
 # Specific algorithms
 hashjunkie -a sha256,md5 file.bin
 
+# Whirlpool is opt-in
+hashjunkie -a whirlpool file.bin
+
 # Multiple files — output is a JSON array matching rclone lsjson --hash format
 hashjunkie -a sha256 *.bin
 
 # Plain text output
-hashjunkie --format hex file.bin
+hashjunkie -f hex file.bin
 ```
 
-**JSON output** (single file):
+**JSON output** (stdin):
 ```json
-{"blake3":"...","crc32":"...","dropbox":"...","md5":"...","sha256":"..."}
+{"Hashes":{"sha256":"..."},"ModTime":"2026-04-30T09:30:36.146550835Z","Name":"-","Path":"-","Size":3}
 ```
 
-**JSON output** (multiple files):
+**JSON output** (files):
 ```json
 [
-  {"Hashes":{"md5":"...","sha256":"..."},"Name":"a.bin","Path":"a.bin"},
-  {"Hashes":{"md5":"...","sha256":"..."},"Name":"b.bin","Path":"b.bin"}
+  {"Hashes":{"md5":"...","sha256":"..."},"ModTime":"...","Name":"a.bin","Path":"a.bin","Size":1024},
+  {"Hashes":{"md5":"...","sha256":"..."},"ModTime":"...","Name":"b.bin","Path":"b.bin","Size":2048}
 ]
 ```
 
@@ -96,13 +101,13 @@ sha256: ba7816bf8f01cfea41...
 
 ```sh
 cat file.bin | hashjunkie
-cat file.bin | hashjunkie -a sha256 --format hex
+cat file.bin | hashjunkie -a sha256 -f hex
 ```
 
 ### Use in shell scripts
 
 ```sh
-sha=$(hashjunkie -a sha256 --format hex file.bin | awk '{print $2}')
+sha=$(hashjunkie -a sha256 -f hex file.bin | awk '{print $2}')
 echo "SHA-256: $sha"
 ```
 
@@ -124,11 +129,11 @@ echo "SHA-256: $sha"
 | `sha1` | SHA-1 | 40 hex chars |
 | `sha256` | SHA-256 | 64 hex chars |
 | `sha512` | SHA-512 | 128 hex chars |
-| `whirlpool` | Whirlpool | 128 hex chars |
+| `whirlpool` | Whirlpool, opt-in | 128 hex chars |
 | `xxh128` | xxHash 128-bit | 32 hex chars |
 | `xxh3` | xxHash 64-bit | 16 hex chars |
 
-Most digests are lowercase hex strings. `cidv0` returns Kubo-compatible CIDv0 roots for multi-block DAG-PB files and CIDv1 raw-leaf strings for single-block files. `cidv1` returns lowercase base32 CIDv1 strings. The JSON field names match the algorithm names above and are always sorted alphabetically.
+Most digests are lowercase hex strings. `cidv0` returns Kubo-compatible CIDv0 roots for multi-block DAG-PB files and CIDv1 raw-leaf strings for single-block files. `cidv1` returns lowercase base32 CIDv1 strings. The JSON field names match the algorithm names above and are always sorted alphabetically. When no algorithms are specified, HashJunkie computes the default 14 algorithms and skips `whirlpool`; pass `-a whirlpool` or include `"whirlpool"` in the API algorithm list to compute it.
 
 The multi-block algorithms (`dropbox`, `hidrive`, `mailru`) produce output compatible with [rclone](https://rclone.org/)'s `lsjson --hash` command.
 
@@ -153,7 +158,7 @@ The JS library loads the native addon if available, otherwise falls back to WASM
 ```
 hashjunkie/
 ├── crates/
-│   ├── hashjunkie-core/        # Rust hash logic — all 15 algorithms
+│   ├── hashjunkie-core/        # Rust hash logic — 15 supported algorithms
 │   ├── hashjunkie-napi/        # napi-rs wrapper → platform .node addons
 │   └── hashjunkie-cli/         # Standalone binary (clap, stdin + file modes)
 ├── npm/
@@ -218,6 +223,16 @@ Run this whenever `crates/hashjunkie-wasm/src/lib.rs` changes:
 ```
 
 The script builds the WASM binary, runs `wasm-bindgen`, and writes the base64-encoded blob to `npm/hashjunkie/wasm_blob.ts`. Commit the generated files.
+
+### Release
+
+`VERSION` is the single source of truth. Before publishing, run:
+
+```sh
+node scripts/version-sync.mjs check
+```
+
+Pushing release-relevant changes to `main` triggers the GitHub Actions release path. The workflow publishes the platform npm packages, publishes `@perw/hashjunkie`, tags `v{VERSION}`, uploads CLI archives to the GitHub Release, and updates `Tuxie/homebrew-tap` with the release version and archive SHA256s.
 
 ### Commit style
 

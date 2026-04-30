@@ -1,8 +1,8 @@
-import { loadBackend } from "./loader";
+import { loadBackend, loadFileBackend } from "./loader";
 import type { Algorithm, Digests } from "./types";
 import { parseAlgorithms } from "./types";
 
-export { ALGORITHMS } from "./types";
+export { ALGORITHMS, DEFAULT_ALGORITHMS } from "./types";
 export type { Algorithm, Digests };
 
 /**
@@ -79,7 +79,7 @@ export class HashJunkie extends TransformStream<Uint8Array, Uint8Array> {
  * streams, no writers, no pipes.
  *
  * @param data - input bytes to hash
- * @param algorithms - subset of algorithms to compute; omit for all 15
+ * @param algorithms - subset of algorithms to compute; omit for defaults
  */
 export async function hashBuffer(data: Uint8Array, algorithms?: Algorithm[]): Promise<Digests> {
   const hj = new HashJunkie(algorithms);
@@ -94,7 +94,7 @@ export async function hashBuffer(data: Uint8Array, algorithms?: Algorithm[]): Pr
  * fully drained; the pass-through bytes are discarded.
  *
  * @param stream - source stream to consume
- * @param algorithms - subset of algorithms to compute; omit for all 15
+ * @param algorithms - subset of algorithms to compute; omit for defaults
  */
 export async function hashStream(
   stream: ReadableStream<Uint8Array>,
@@ -107,4 +107,16 @@ export async function hashStream(
     }),
   );
   return hj.digests;
+}
+
+/**
+ * Hash a local file by path. Native builds let Rust own file IO and avoid
+ * per-chunk JS stream overhead; WASM builds fall back to Bun.file().stream().
+ *
+ * @param path - local filesystem path
+ * @param algorithms - subset of algorithms to compute; omit for defaults
+ */
+export async function hashFile(path: string, algorithms?: Algorithm[]): Promise<Digests> {
+  const algs = parseAlgorithms(algorithms);
+  return loadFileBackend().hashFile(path, algs);
 }

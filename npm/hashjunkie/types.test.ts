@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import type { Algorithm } from "./types";
-import { ALGORITHMS, parseAlgorithms } from "./types";
+import { ALGORITHMS, DEFAULT_ALGORITHMS, parseAlgorithms } from "./types";
 
 test("ALGORITHMS contains exactly 15 algorithms", () => {
   expect(ALGORITHMS).toHaveLength(15);
@@ -29,20 +29,30 @@ test("ALGORITHMS includes all required algorithm names", () => {
   }
 });
 
-test("parseAlgorithms() with no argument returns all 15 algorithms", () => {
+test("DEFAULT_ALGORITHMS excludes opt-in whirlpool", () => {
+  expect(DEFAULT_ALGORITHMS).toHaveLength(14);
+  expect(DEFAULT_ALGORITHMS).not.toContain("whirlpool");
+});
+
+test("parseAlgorithms() with no argument returns default algorithms", () => {
   const result = parseAlgorithms();
-  expect(result).toHaveLength(15);
-  expect(result).toEqual([...ALGORITHMS]);
+  expect(result).toHaveLength(14);
+  expect(result).toEqual([...DEFAULT_ALGORITHMS]);
 });
 
 test("parseAlgorithms() returns a mutable copy (not the const array)", () => {
   const result = parseAlgorithms();
   result.push("sha256" as never); // should not throw
   expect(ALGORITHMS).toHaveLength(15); // original unchanged
+  expect(DEFAULT_ALGORITHMS).toHaveLength(14); // original unchanged
 });
 
 test("parseAlgorithms() with a valid subset returns that subset", () => {
   expect(parseAlgorithms(["sha256", "blake3"])).toEqual(["sha256", "blake3"]);
+});
+
+test("parseAlgorithms() with explicit whirlpool returns whirlpool", () => {
+  expect(parseAlgorithms(["whirlpool"])).toEqual(["whirlpool"]);
 });
 
 test("parseAlgorithms() with empty array throws TypeError", () => {

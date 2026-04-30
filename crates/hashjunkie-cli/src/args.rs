@@ -7,12 +7,12 @@ pub struct Args {
     /// Files to hash (omit to read from stdin)
     pub files: Vec<String>,
 
-    /// Comma-separated list of algorithms (default: all)
+    /// Comma-separated list of algorithms (default: all except opt-in whirlpool)
     #[arg(short = 'a', long = "algorithms")]
     pub algorithms: Option<String>,
 
     /// Output format
-    #[arg(long = "format", default_value = "json")]
+    #[arg(short = 'f', long = "format", default_value = "json")]
     pub format: Format,
 }
 
@@ -66,9 +66,11 @@ mod tests {
     }
 
     #[test]
-    fn resolved_algorithms_none_returns_all_15() {
+    fn resolved_algorithms_none_returns_default_14_without_whirlpool() {
         let args = Args::parse_from(["hashjunkie"]);
-        assert_eq!(args.resolved_algorithms().unwrap().len(), 15);
+        let algs = args.resolved_algorithms().unwrap();
+        assert_eq!(algs.len(), 14);
+        assert!(!algs.contains(&Algorithm::Whirlpool));
     }
 
     #[test]
