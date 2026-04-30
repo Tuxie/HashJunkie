@@ -168,7 +168,7 @@ impl Hasher for CidHasher {
     }
 
     fn finalize_hex(mut self: Box<Self>) -> String {
-        if !self.current.is_empty() || self.leaves.is_empty() {
+        if !self.current.is_empty() || (self.leaves.is_empty() && self.pending_chunks.is_empty()) {
             let chunk = std::mem::take(&mut self.current);
             self.push_chunk(&chunk);
         }
@@ -377,21 +377,45 @@ mod tests {
     }
 
     #[test]
-    fn empty_input_matches_raw_sha2_256_cid() {
+    fn empty_input_matches_kubo_nocopy_cidv0_raw_leaf() {
         assert_eq!(
             cidv0(b""),
             "bafkreihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku"
         );
-        assert_eq!(cidv0(b""), cidv1(b""));
+        assert_eq!(
+            cidv1(b""),
+            "bafkreihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku"
+        );
     }
 
     #[test]
-    fn abc_matches_raw_sha2_256_cid() {
+    fn abc_matches_kubo_nocopy_cidv0_raw_leaf() {
+        assert_eq!(
+            cidv0(b"abc"),
+            "bafkreif2pall7dybz7vecqka3zo24irdwabwdi4wc55jznaq75q7eaavvu"
+        );
         assert_eq!(
             cidv1(b"abc"),
             "bafkreif2pall7dybz7vecqka3zo24irdwabwdi4wc55jznaq75q7eaavvu"
         );
-        assert_eq!(cidv0(b"abc"), cidv1(b"abc"));
+    }
+
+    #[test]
+    fn cidv0_exactly_one_full_chunk_matches_kubo_nocopy_raw_leaf() {
+        let data = vec![0; CHUNK_SIZE];
+        assert_eq!(
+            cidv0(&data),
+            "bafkreiekhhjkxu4ztk3tyng3er3ijhg56mb44oe3gwbgquhzu4afrg2ksa"
+        );
+    }
+
+    #[test]
+    fn cidv1_exactly_one_full_chunk_matches_kubo_nocopy_raw_leaf() {
+        let data = vec![0; CHUNK_SIZE];
+        assert_eq!(
+            cidv1(&data),
+            "bafkreiekhhjkxu4ztk3tyng3er3ijhg56mb44oe3gwbgquhzu4afrg2ksa"
+        );
     }
 
     #[test]

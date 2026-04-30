@@ -120,7 +120,7 @@ echo "SHA-256: $sha"
 | `aich` | eMule/aMule AICH root hash — SHA-1 tree over ED2K parts and 180 KiB blocks | Base32 SHA-1 tree root |
 | `blake3` | BLAKE3 | 64 hex chars |
 | `btv2` | BitTorrent v2 per-file `pieces root` — BEP 52 SHA-256 Merkle root | 64 hex chars |
-| `cidv0` | IPFS CID matching stock Kubo `ipfs add --nocopy` defaults | CID string |
+| `cidv0` | Kubo `ipfs add --nocopy --cid-version=0` CID | CID string; raw-leaf `bafk...` for single-block files, `Qm...` DAG-PB root for multiblock files |
 | `cidv1` | IPFS CIDv1 for `ipfs add --nocopy --cid-version=1` | base32 CID string |
 | `crc32` | CRC-32 | 8 hex chars |
 | `dropbox` | Dropbox content hash — SHA-256 over 4 MiB blocks | 64 hex chars |
@@ -137,7 +137,7 @@ echo "SHA-256: $sha"
 | `xxh128` | xxHash 128-bit | 32 hex chars |
 | `xxh3` | xxHash 64-bit | 16 hex chars |
 
-Most digests are lowercase hex strings. `aich` returns the standard uppercase Base32 AICH root used in eD2K links as `h=...`. `btv2` returns the BEP 52 per-file `pieces root`; BEP 52 omits `pieces root` for empty files, so HashJunkie returns the zero Merkle root for standalone empty-file hashing. `cidv0` returns Kubo-compatible CIDv0 roots for multi-block DAG-PB files and CIDv1 raw-leaf strings for single-block files. `cidv1` returns lowercase base32 CIDv1 strings. `tiger` returns the standard uppercase Base32 Tiger Tree root. The JSON field names match the algorithm names above and are always sorted alphabetically. When no algorithms are specified, HashJunkie computes the default 18 algorithms and skips `whirlpool`; pass `-a whirlpool` or include `"whirlpool"` in the API algorithm list to compute it.
+Most digests are lowercase hex strings. `aich` returns the standard uppercase Base32 AICH root used in eD2K links as `h=...`. `btv2` returns the BEP 52 per-file `pieces root`; BEP 52 omits `pieces root` for empty files, so HashJunkie returns the zero Merkle root for standalone empty-file hashing. `cidv0` matches Kubo 0.41 `ipfs add --nocopy --cid-version=0`: single-block files return raw-leaf CIDv1-style `bafk...` strings, while multiblock files return 46-character base58btc DAG-PB roots beginning with `Qm`. `cidv1` returns lowercase base32 CIDv1 strings. `tiger` returns the standard uppercase Base32 Tiger Tree root. The JSON field names match the algorithm names above and are always sorted alphabetically. When no algorithms are specified, HashJunkie computes the default 18 algorithms and skips `whirlpool`; pass `-a whirlpool` or include `"whirlpool"` in the API algorithm list to compute it.
 
 The multi-block algorithms (`aich`, `btv2`, `dropbox`, `ed2k`, `hidrive`, `mailru`) produce output compatible with their standard service/client definitions; `dropbox`, `hidrive`, and `mailru` match [rclone](https://rclone.org/)'s `lsjson --hash` command.
 

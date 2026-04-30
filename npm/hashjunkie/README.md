@@ -18,7 +18,7 @@ const { sha256, blake3, md5 } = await hj.digests;
 | `aich` | eMule/aMule AICH root hash (SHA-1 tree over ED2K parts and 180 KiB blocks) |
 | `blake3` | BLAKE3 (256-bit) |
 | `btv2` | BitTorrent v2 per-file `pieces root` (BEP 52 SHA-256 Merkle root) |
-| `cidv0` | IPFS CID matching stock Kubo `ipfs add --nocopy` defaults |
+| `cidv0` | Kubo `ipfs add --nocopy --cid-version=0` CID |
 | `cidv1` | IPFS CIDv1 for `ipfs add --nocopy --cid-version=1` |
 | `crc32` | CRC-32 |
 | `dropbox` | Dropbox content hash (SHA-256 of 4 MiB blocks) |
@@ -70,7 +70,7 @@ console.log(ALGORITHMS); // readonly ["blake3", "crc32", ...]
 console.log(DEFAULT_ALGORITHMS); // same list without "whirlpool"
 ```
 
-Most digests are lowercase hex strings. `aich` returns the standard uppercase Base32 AICH root used in eD2K links as `h=...`. `btv2` returns the BEP 52 per-file `pieces root` as lowercase hex; BEP 52 omits `pieces root` for empty files, so HashJunkie returns the zero Merkle root for standalone empty-file hashing. `cidv0` returns Kubo-compatible CIDv0 roots for multi-block DAG-PB files and CIDv1 raw-leaf strings for single-block files. `cidv1` returns lowercase base32 CIDv1 strings. `tiger` returns the standard uppercase Base32 Tiger Tree root. The `digests` promise resolves when the writable side closes cleanly, and rejects if the stream is aborted.
+Most digests are lowercase hex strings. `aich` returns the standard uppercase Base32 AICH root used in eD2K links as `h=...`. `btv2` returns the BEP 52 per-file `pieces root` as lowercase hex; BEP 52 omits `pieces root` for empty files, so HashJunkie returns the zero Merkle root for standalone empty-file hashing. `cidv0` matches Kubo 0.41 `ipfs add --nocopy --cid-version=0`: single-block files return raw-leaf CIDv1-style `bafk...` strings, while multiblock files return 46-character base58btc DAG-PB roots beginning with `Qm`. `cidv1` returns lowercase base32 CIDv1 strings. `tiger` returns the standard uppercase Base32 Tiger Tree root. The `digests` promise resolves when the writable side closes cleanly, and rejects if the stream is aborted.
 
 ## Best practices
 

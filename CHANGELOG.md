@@ -1,6 +1,15 @@
 # Changelog
 
-## Unreleased
+## 0.5.1 - 2026-04-30
+
+HashJunkie 0.5.1 fixes `cidv0` compatibility with Kubo 0.41
+`ipfs add --nocopy --cid-version=0` at the single-block boundary.
+
+### Fixed
+
+- Fixed `cidv0` output at the 256 KiB boundary so `cidv0` matches Kubo 0.41
+  `ipfs add --nocopy --cid-version=0`: raw-leaf CIDv1-style strings for
+  single-block files and `Qm...` DAG-PB roots only for multiblock files.
 
 ## 0.5.0 - 2026-04-30
 

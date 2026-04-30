@@ -387,7 +387,7 @@ dependencies = [
 
 [[package]]
 name = "hashjunkie-cli"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "chrono",
  "clap",
@@ -397,7 +397,7 @@ dependencies = [
 
 [[package]]
 name = "hashjunkie-core"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "blake3",
  "crc32fast",
@@ -415,7 +415,7 @@ dependencies = [
 
 [[package]]
 name = "hashjunkie-napi"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "blake3",
  "hashjunkie-core",
@@ -426,7 +426,7 @@ dependencies = [
 
 [[package]]
 name = "hashjunkie-wasm"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "hashjunkie-core",
  "js-sys",

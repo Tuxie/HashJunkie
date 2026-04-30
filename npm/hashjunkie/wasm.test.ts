@@ -5,7 +5,8 @@ import { makeWasmBackend } from "./wasm";
 const ABC_SHA256 = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
 const ABC_AICH = "VGMT4NSHA2AWVOR6EVYXQUGCNSONBWE5";
 const ABC_BTV2 = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
-const ABC_CID = "bafkreif2pall7dybz7vecqka3zo24irdwabwdi4wc55jznaq75q7eaavvu";
+const ABC_CIDV0 = "bafkreif2pall7dybz7vecqka3zo24irdwabwdi4wc55jznaq75q7eaavvu";
+const ABC_CIDV1 = "bafkreif2pall7dybz7vecqka3zo24irdwabwdi4wc55jznaq75q7eaavvu";
 const ZEROES_MULTI_CIDV0 = "Qmc2SWxBGrBtWKZxuyg8999QuzXsPR47zsWiM7Yq9YFUXT";
 const ZEROES_MULTI_CIDV1 = "bafybeigllfqgfpqydppr6cmv56g7ax4wyhruzswvcefv6j5kj77nzttfki";
 const ABC_ED2K = "a448017aaf21d8525fc10ae87aa6729d";
@@ -59,7 +60,14 @@ test("makeWasmBackend: cidv1 of 'abc' matches raw-leaf IPFS CID", () => {
   const backend = makeWasmBackend(["cidv1"]);
   backend.update(new TextEncoder().encode("abc"));
   const digests = backend.finalize();
-  expect(digests.cidv1).toBe(ABC_CID);
+  expect(digests.cidv1).toBe(ABC_CIDV1);
+});
+
+test("makeWasmBackend: cidv0 of 'abc' matches Kubo nocopy raw-leaf CID", () => {
+  const backend = makeWasmBackend(["cidv0"]);
+  backend.update(new TextEncoder().encode("abc"));
+  const digests = backend.finalize();
+  expect(digests.cidv0).toBe(ABC_CIDV0);
 });
 
 test("makeWasmBackend: cidv0 and cidv1 match Kubo for multi-chunk input", () => {
