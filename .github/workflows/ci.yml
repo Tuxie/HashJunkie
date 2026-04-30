@@ -29,7 +29,7 @@ jobs:
         run: node scripts/version-sync.mjs check
 
       - name: Test version tooling
-        run: node --test scripts/version-sync.test.mjs scripts/update-homebrew-formula.test.mjs
+        run: node --test scripts/version-sync.test.mjs scripts/update-homebrew-formula.test.mjs scripts/release-notes.test.mjs
 
   rust:
     name: Rust checks
@@ -189,16 +189,17 @@ jobs:
           echo "Changed files:"
           echo "$changed"
           # Paths that ship in a build artifact:
+          #   CHANGELOG.md — GitHub Release notes
           #   crates/hashjunkie-cli/Cargo.toml  — CLI manifest changes affect release assets
           #   crates/*/src/          — Rust source for all crates, including CLI source
           #   crates/hashjunkie-napi/build.rs — napi build script
           #   npm/hashjunkie/*.ts/js  — TS/JS source (test files excluded below)
           #   Cargo.toml / Cargo.lock — dependency changes affect compiled output
           #   npm/*/package.json      — manifest changes affect published packages
-          #   VERSION / scripts/version-sync.mjs — release version source and gate
+          #   VERSION / scripts/*.mjs — release version, release notes, and release gates
           #   .github/workflows/ci.yml — release gating and packaging metadata
           release_files=$(echo "$changed" \
-            | grep -E '^(VERSION|scripts/version-sync\.mjs|crates/hashjunkie-cli/Cargo\.toml|crates/[^/]+/src/|crates/hashjunkie-napi/build\.rs|Cargo\.(toml|lock)|npm/hashjunkie/[^/]+\.(ts|js)|npm/[^/]+/package\.json|\.github/workflows/ci\.yml)' \
+            | grep -E '^(CHANGELOG\.md|VERSION|scripts/(release-notes|version-sync)\.mjs|crates/hashjunkie-cli/Cargo\.toml|crates/[^/]+/src/|crates/hashjunkie-napi/build\.rs|Cargo\.(toml|lock)|npm/hashjunkie/[^/]+\.(ts|js)|npm/[^/]+/package\.json|\.github/workflows/ci\.yml)' \
             | grep -vE '\.test\.ts$')
           if [ -n "$release_files" ]; then
             echo "release=true" >> "$GITHUB_OUTPUT"
@@ -431,16 +432,19 @@ jobs:
             git push origin "$TAG"
           fi
 
-      - name: Create GitHub Release
+      - name: Prepare GitHub Release notes
+        run: node scripts/release-notes.mjs "${{ needs.version.outputs.new }}" > /tmp/release-notes.md
+
+      - name: Create or update GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           TAG="v${{ needs.version.outputs.new }}"
           if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "GitHub Release $TAG already exists."
+            gh release edit "$TAG" --title "$TAG" --notes-file /tmp/release-notes.md
           else
-            gh release create "$TAG" --verify-tag --title "$TAG" --notes ""
+            gh release create "$TAG" --verify-tag --title "$TAG" --notes-file /tmp/release-notes.md
           fi
 
       - name: Upload CLI archives to GitHub Release
