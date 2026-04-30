@@ -29,6 +29,7 @@ async function hashWith(hj: HashJunkie, data: Uint8Array): Promise<Record<string
 
 // Known SHA-256 and MD5 digests — verified via coreutils sha256sum / md5sum.
 const EMPTY_SHA256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+const EMPTY_AICH = "3I42H3S6NNFQ2MSVX7XZKYAYSCX5QBYJ";
 const EMPTY_BTV2 = "0000000000000000000000000000000000000000000000000000000000000000";
 const EMPTY_MD5 = "d41d8cd98f00b204e9800998ecf8427e";
 const EMPTY_TIGER = "LWPNACQDBZRYXW3VHJVCJ64QBZNGHOHHHZWCLNQ";
@@ -39,9 +40,10 @@ const ABC_ED2K = "a448017aaf21d8525fc10ae87aa6729d";
 test.if(hasAddon)(
   "HashJunkie with real native backend: sha256 of empty input matches known value",
   async () => {
-    const hj = new HashJunkie(["sha256", "md5", "tiger", "btv2"]);
+    const hj = new HashJunkie(["sha256", "md5", "tiger", "btv2", "aich"]);
     const digests = await hashWith(hj, new Uint8Array(0));
     expect(digests.sha256).toBe(EMPTY_SHA256);
+    expect(digests.aich).toBe(EMPTY_AICH);
     expect(digests.btv2).toBe(EMPTY_BTV2);
     expect(digests.md5).toBe(EMPTY_MD5);
     expect(digests.tiger).toBe(EMPTY_TIGER);

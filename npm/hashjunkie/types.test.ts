@@ -2,12 +2,13 @@ import { expect, test } from "bun:test";
 import type { Algorithm } from "./types";
 import { ALGORITHMS, DEFAULT_ALGORITHMS, parseAlgorithms } from "./types";
 
-test("ALGORITHMS contains exactly 18 algorithms", () => {
-  expect(ALGORITHMS).toHaveLength(18);
+test("ALGORITHMS contains exactly 19 algorithms", () => {
+  expect(ALGORITHMS).toHaveLength(19);
 });
 
 test("ALGORITHMS includes all required algorithm names", () => {
   const required: Algorithm[] = [
+    "aich",
     "blake3",
     "btv2",
     "cidv0",
@@ -33,7 +34,8 @@ test("ALGORITHMS includes all required algorithm names", () => {
 });
 
 test("DEFAULT_ALGORITHMS excludes opt-in whirlpool", () => {
-  expect(DEFAULT_ALGORITHMS).toHaveLength(17);
+  expect(DEFAULT_ALGORITHMS).toHaveLength(18);
+  expect(DEFAULT_ALGORITHMS).toContain("aich");
   expect(DEFAULT_ALGORITHMS).toContain("btv2");
   expect(DEFAULT_ALGORITHMS).toContain("ed2k");
   expect(DEFAULT_ALGORITHMS).toContain("tiger");
@@ -42,15 +44,15 @@ test("DEFAULT_ALGORITHMS excludes opt-in whirlpool", () => {
 
 test("parseAlgorithms() with no argument returns default algorithms", () => {
   const result = parseAlgorithms();
-  expect(result).toHaveLength(17);
+  expect(result).toHaveLength(18);
   expect(result).toEqual([...DEFAULT_ALGORITHMS]);
 });
 
 test("parseAlgorithms() returns a mutable copy (not the const array)", () => {
   const result = parseAlgorithms();
   result.push("sha256" as never); // should not throw
-  expect(ALGORITHMS).toHaveLength(18); // original unchanged
-  expect(DEFAULT_ALGORITHMS).toHaveLength(17); // original unchanged
+  expect(ALGORITHMS).toHaveLength(19); // original unchanged
+  expect(DEFAULT_ALGORITHMS).toHaveLength(18); // original unchanged
 });
 
 test("parseAlgorithms() with a valid subset returns that subset", () => {

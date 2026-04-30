@@ -14,6 +14,7 @@ fn all_algorithms_match_known_vectors_for_small_bin() {
     let digests = hash_file("tests/fixtures/small.bin");
 
     let expected: &[(&str, &str)] = &[
+        ("aich", "LMAGNHCIBVOP7PP2RPN2TFLBCYHS2G3X"),
         (
             "blake3",
             "882179b8dbccd285cda241d968cfcccb3156c5edac2fa3761bb6eda7ff8cb172",
@@ -62,6 +63,39 @@ fn all_algorithms_match_known_vectors_for_small_bin() {
             .unwrap_or_else(|| panic!("missing algorithm: {name}"));
         assert_eq!(got, expected_hex, "mismatch for {name}");
     }
+}
+
+#[test]
+fn aich_matches_emule_tree_vectors_and_chunked_updates() {
+    let cases: &[(&[u8], &str)] = &[
+        (b"", "3I42H3S6NNFQ2MSVX7XZKYAYSCX5QBYJ"),
+        (b"abc", "VGMT4NSHA2AWVOR6EVYXQUGCNSONBWE5"),
+    ];
+
+    for (data, expected) in cases {
+        let mut h = MultiHasher::new(&[Algorithm::Aich]);
+        h.update(data);
+        assert_eq!(h.finalize()[&Algorithm::Aich], *expected);
+    }
+
+    let mut data = vec![0x11; 180 * 1024];
+    data.push(0x22);
+
+    let mut single = MultiHasher::new(&[Algorithm::Aich]);
+    single.update(&data);
+    assert_eq!(
+        single.finalize()[&Algorithm::Aich],
+        "J573AFG7KZF7FWRT4FS56AVF5EFGSV7B"
+    );
+
+    let mut chunked = MultiHasher::new(&[Algorithm::Aich]);
+    for chunk in data.chunks(3333) {
+        chunked.update(chunk);
+    }
+    assert_eq!(
+        chunked.finalize()[&Algorithm::Aich],
+        "J573AFG7KZF7FWRT4FS56AVF5EFGSV7B"
+    );
 }
 
 #[test]

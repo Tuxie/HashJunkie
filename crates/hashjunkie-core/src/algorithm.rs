@@ -2,6 +2,7 @@ use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Algorithm {
+    Aich,
     Blake3,
     Btv2,
     CidV0,
@@ -25,6 +26,7 @@ pub enum Algorithm {
 impl Algorithm {
     pub fn supported() -> &'static [Algorithm] {
         &[
+            Algorithm::Aich,
             Algorithm::Blake3,
             Algorithm::Btv2,
             Algorithm::CidV0,
@@ -48,6 +50,7 @@ impl Algorithm {
 
     pub fn all() -> &'static [Algorithm] {
         &[
+            Algorithm::Aich,
             Algorithm::Blake3,
             Algorithm::Btv2,
             Algorithm::CidV0,
@@ -70,6 +73,7 @@ impl Algorithm {
 
     pub fn as_str(&self) -> &'static str {
         match self {
+            Algorithm::Aich => "aich",
             Algorithm::Blake3 => "blake3",
             Algorithm::Btv2 => "btv2",
             Algorithm::CidV0 => "cidv0",
@@ -114,6 +118,7 @@ impl std::str::FromStr for Algorithm {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
+            "aich" => Ok(Algorithm::Aich),
             "blake3" => Ok(Algorithm::Blake3),
             "btv2" => Ok(Algorithm::Btv2),
             "cidv0" => Ok(Algorithm::CidV0),
@@ -144,13 +149,13 @@ mod tests {
 
     #[test]
     fn all_returns_default_algorithms_without_whirlpool() {
-        assert_eq!(Algorithm::all().len(), 17);
+        assert_eq!(Algorithm::all().len(), 18);
         assert!(!Algorithm::all().contains(&Algorithm::Whirlpool));
     }
 
     #[test]
-    fn supported_returns_all_18_algorithms_including_whirlpool() {
-        assert_eq!(Algorithm::supported().len(), 18);
+    fn supported_returns_all_19_algorithms_including_whirlpool() {
+        assert_eq!(Algorithm::supported().len(), 19);
         assert!(Algorithm::supported().contains(&Algorithm::Ed2k));
         assert!(Algorithm::supported().contains(&Algorithm::Tiger));
         assert!(Algorithm::supported().contains(&Algorithm::Whirlpool));

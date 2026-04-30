@@ -167,6 +167,7 @@ impl MultiHasher {
 fn make_hasher(alg: Algorithm) -> Box<dyn Hasher> {
     use hashes::*;
     match alg {
+        Algorithm::Aich => Box::new(AichHasher::new()),
         Algorithm::Blake3 => Box::new(Blake3Hasher::new()),
         Algorithm::Btv2 => Box::new(Btv2Hasher::new()),
         Algorithm::CidV0 => Box::new(CidHasher::v0()),
@@ -208,7 +209,8 @@ mod tests {
         let mut h = MultiHasher::all();
         h.update(b"");
         let digests = h.finalize();
-        assert_eq!(digests.len(), 17);
+        assert_eq!(digests.len(), 18);
+        assert!(digests.contains_key(&Algorithm::Aich));
         assert!(digests.contains_key(&Algorithm::Ed2k));
         assert!(digests.contains_key(&Algorithm::Tiger));
         assert!(!digests.contains_key(&Algorithm::Whirlpool));
@@ -266,6 +268,7 @@ mod tests {
     fn parallel_update_matches_single_update() {
         let data = vec![7; PARALLEL_UPDATE_MIN * 2 + 13];
         let algs = &[
+            Algorithm::Aich,
             Algorithm::Blake3,
             Algorithm::Btv2,
             Algorithm::Sha256,

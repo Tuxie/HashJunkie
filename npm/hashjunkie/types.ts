@@ -1,4 +1,5 @@
 export const ALGORITHMS = [
+  "aich",
   "blake3",
   "btv2",
   "cidv0",

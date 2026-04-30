@@ -129,9 +129,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parse_algorithms_none_returns_default_17_without_whirlpool() {
+    fn parse_algorithms_none_returns_default_18_without_whirlpool() {
         let algs = parse_algorithms(None).unwrap();
-        assert_eq!(algs.len(), 17);
+        assert_eq!(algs.len(), 18);
+        assert!(algs.contains(&Algorithm::Aich));
         assert!(algs.contains(&Algorithm::Btv2));
         assert!(algs.contains(&Algorithm::Ed2k));
         assert!(algs.contains(&Algorithm::Tiger));

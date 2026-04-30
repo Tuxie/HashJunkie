@@ -6,6 +6,9 @@ pub trait Hasher: Send {
 mod rustcrypto;
 pub use rustcrypto::RustCryptoHasher;
 
+mod aich;
+pub use aich::AichHasher;
+
 mod blake3;
 pub use blake3::Blake3Hasher;
 

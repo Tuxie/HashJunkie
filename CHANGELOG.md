@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added `aich` hash support for eMule/aMule AICH root hashes.
 - Added `ed2k` hash support for eDonkey/eMule/MLDonkey-compatible file hashes.
 - Added `tiger` Tiger Tree Hash support for Gnutella2/Direct Connect-compatible file hashes.
 - Added `btv2` hash support for BitTorrent v2 per-file `pieces root` hashes.

@@ -3,6 +3,7 @@ import { makeWasmBackend } from "./wasm";
 
 // SHA-256("abc") — verified via sha256sum and Python hashlib.
 const ABC_SHA256 = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+const ABC_AICH = "VGMT4NSHA2AWVOR6EVYXQUGCNSONBWE5";
 const ABC_BTV2 = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
 const ABC_CID = "bafkreif2pall7dybz7vecqka3zo24irdwabwdi4wc55jznaq75q7eaavvu";
 const ZEROES_MULTI_CIDV0 = "Qmc2SWxBGrBtWKZxuyg8999QuzXsPR47zsWiM7Yq9YFUXT";
@@ -17,6 +18,13 @@ test("makeWasmBackend: sha256 of 'abc' matches known value", () => {
   backend.update(new TextEncoder().encode("abc"));
   const digests = backend.finalize();
   expect(digests.sha256).toBe(ABC_SHA256);
+});
+
+test("makeWasmBackend: aich of 'abc' matches eMule AICH single-block root", () => {
+  const backend = makeWasmBackend(["aich"]);
+  backend.update(new TextEncoder().encode("abc"));
+  const digests = backend.finalize();
+  expect(digests.aich).toBe(ABC_AICH);
 });
 
 test("makeWasmBackend: btv2 of 'abc' matches BEP 52 single-block pieces root", () => {
