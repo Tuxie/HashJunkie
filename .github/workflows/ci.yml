@@ -370,14 +370,15 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Publish hashjunkie library to crates.io
-        if: needs.version.outputs.crates_skip != 'true'
         env:
           CRATES_IO_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
-        run: cargo publish -p hashjunkie --token "$CRATES_IO_TOKEN"
-
-      - name: Skip existing hashjunkie library version
-        if: needs.version.outputs.crates_skip == 'true'
-        run: echo "hashjunkie ${{ needs.version.outputs.new }} is already published on crates.io."
+        run: |
+          set -euo pipefail
+          if curl -fsS "https://crates.io/api/v1/crates/hashjunkie/${{ needs.version.outputs.new }}" >/dev/null; then
+            echo "hashjunkie ${{ needs.version.outputs.new }} is already published on crates.io."
+            exit 0
+          fi
+          cargo publish -p hashjunkie --token "$CRATES_IO_TOKEN"
 
       - name: Wait for hashjunkie library on crates.io
         if: needs.version.outputs.cli_crate_skip != 'true'
@@ -394,14 +395,15 @@ jobs:
           exit 1
 
       - name: Publish hashjunkie-cli to crates.io
-        if: needs.version.outputs.cli_crate_skip != 'true'
         env:
           CRATES_IO_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
-        run: cargo publish -p hashjunkie-cli --token "$CRATES_IO_TOKEN"
-
-      - name: Skip existing hashjunkie-cli version
-        if: needs.version.outputs.cli_crate_skip == 'true'
-        run: echo "hashjunkie-cli ${{ needs.version.outputs.new }} is already published on crates.io."
+        run: |
+          set -euo pipefail
+          if curl -fsS "https://crates.io/api/v1/crates/hashjunkie-cli/${{ needs.version.outputs.new }}" >/dev/null; then
+            echo "hashjunkie-cli ${{ needs.version.outputs.new }} is already published on crates.io."
+            exit 0
+          fi
+          cargo publish -p hashjunkie-cli --token "$CRATES_IO_TOKEN"
 
   publish:
     name: Publish release artifacts
