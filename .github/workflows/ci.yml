@@ -384,13 +384,13 @@ jobs:
         run: |
           set -euo pipefail
           for attempt in $(seq 1 30); do
-            if cargo search hashjunkie --limit 1 | grep -q '^hashjunkie = "${{ needs.version.outputs.new }}"'; then
+            if curl -fsS "https://crates.io/api/v1/crates/hashjunkie/${{ needs.version.outputs.new }}" >/dev/null; then
               exit 0
             fi
-            echo "hashjunkie ${{ needs.version.outputs.new }} is not visible in the crates.io index yet; waiting..."
+            echo "hashjunkie ${{ needs.version.outputs.new }} is not visible through the crates.io API yet; waiting..."
             sleep 10
           done
-          echo "Timed out waiting for hashjunkie ${{ needs.version.outputs.new }} in the crates.io index." >&2
+          echo "Timed out waiting for hashjunkie ${{ needs.version.outputs.new }} through the crates.io API." >&2
           exit 1
 
       - name: Publish hashjunkie-cli to crates.io
