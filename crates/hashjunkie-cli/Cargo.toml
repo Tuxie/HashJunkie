@@ -1,7 +1,14 @@
 [package]
-name    = "hashjunkie-cli"
-version = "0.5.2"
-edition = "2024"
+name          = "hashjunkie-cli"
+version = "0.6.0"
+edition       = "2024"
+description   = "Command-line interface for HashJunkie multi-algorithm file hashing"
+license       = "MIT"
+repository    = "https://github.com/Tuxie/HashJunkie"
+documentation = "https://github.com/Tuxie/HashJunkie#cli"
+readme        = "../../README.md"
+keywords      = ["hash", "checksum", "blake3", "ipfs", "torrent"]
+categories    = ["command-line-utilities", "filesystem"]
 
 [[bin]]
 name = "hashjunkie"
@@ -10,5 +17,5 @@ path = "src/main.rs"
 [dependencies]
 chrono          = { version = "0.4.44", default-features = false, features = ["clock", "std"] }
 clap            = { workspace = true }
-hashjunkie      = { path = "../hashjunkie" }
+hashjunkie      = { version = "0.6.0", path = "../hashjunkie" }
 serde_json      = { workspace = true }

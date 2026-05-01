@@ -177,6 +177,8 @@ jobs:
       release: ${{ steps.release.outputs.release }}
       new: ${{ steps.version.outputs.new }}
       skip: ${{ steps.version.outputs.skip }}
+      crates_skip: ${{ steps.version.outputs.crates_skip }}
+      cli_crate_skip: ${{ steps.version.outputs.cli_crate_skip }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -227,9 +229,21 @@ jobs:
           else
             SKIP=false
           fi
+          if curl -fsS "https://crates.io/api/v1/crates/hashjunkie/$NEW" >/dev/null; then
+            CRATES_SKIP=true
+          else
+            CRATES_SKIP=false
+          fi
+          if curl -fsS "https://crates.io/api/v1/crates/hashjunkie-cli/$NEW" >/dev/null; then
+            CLI_CRATE_SKIP=true
+          else
+            CLI_CRATE_SKIP=false
+          fi
           echo "new=$NEW"       >> "$GITHUB_OUTPUT"
           echo "skip=$SKIP"     >> "$GITHUB_OUTPUT"
-          echo "npm latest: $LATEST; VERSION: $NEW; publishing: $NEW; skip: $SKIP"
+          echo "crates_skip=$CRATES_SKIP" >> "$GITHUB_OUTPUT"
+          echo "cli_crate_skip=$CLI_CRATE_SKIP" >> "$GITHUB_OUTPUT"
+          echo "npm latest: $LATEST; VERSION: $NEW; publishing: $NEW; skip: $SKIP; crates skip: $CRATES_SKIP; CLI crate skip: $CLI_CRATE_SKIP"
 
   build-native:
     name: Build ${{ matrix.target }}
@@ -344,9 +358,54 @@ jobs:
           path: ${{ env.CLI_ARCHIVE }}
           retention-days: 1
 
+  publish-crate:
+    name: Publish crate
+    needs: [version-consistency, rust, version]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.version.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Publish hashjunkie library to crates.io
+        if: needs.version.outputs.crates_skip != 'true'
+        env:
+          CRATES_IO_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+        run: cargo publish -p hashjunkie --token "$CRATES_IO_TOKEN"
+
+      - name: Skip existing hashjunkie library version
+        if: needs.version.outputs.crates_skip == 'true'
+        run: echo "hashjunkie ${{ needs.version.outputs.new }} is already published on crates.io."
+
+      - name: Wait for hashjunkie library on crates.io
+        if: needs.version.outputs.cli_crate_skip != 'true'
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 30); do
+            if cargo search hashjunkie --limit 1 | grep -q '^hashjunkie = "${{ needs.version.outputs.new }}"'; then
+              exit 0
+            fi
+            echo "hashjunkie ${{ needs.version.outputs.new }} is not visible in the crates.io index yet; waiting..."
+            sleep 10
+          done
+          echo "Timed out waiting for hashjunkie ${{ needs.version.outputs.new }} in the crates.io index." >&2
+          exit 1
+
+      - name: Publish hashjunkie-cli to crates.io
+        if: needs.version.outputs.cli_crate_skip != 'true'
+        env:
+          CRATES_IO_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+        run: cargo publish -p hashjunkie-cli --token "$CRATES_IO_TOKEN"
+
+      - name: Skip existing hashjunkie-cli version
+        if: needs.version.outputs.cli_crate_skip == 'true'
+        run: echo "hashjunkie-cli ${{ needs.version.outputs.new }} is already published on crates.io."
+
   publish:
-    name: Publish to npm
-    needs: [version, build-native]
+    name: Publish release artifacts
+    needs: [version, build-native, publish-crate]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.version.outputs.release == 'true'
     runs-on: ubuntu-latest
     permissions:

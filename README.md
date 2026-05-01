@@ -84,6 +84,14 @@ Release assets are published with these archive names:
 - `hashjunkie-cli-{version}-darwin-arm64.tar.xz`
 - `hashjunkie-cli-{version}-win32-x64-msvc.zip`
 
+You can also install from crates.io:
+
+```sh
+cargo install hashjunkie-cli
+```
+
+The Cargo package is named `hashjunkie-cli`, but the installed binary is `hashjunkie`.
+
 ### Hash files
 
 ```sh
@@ -288,7 +296,7 @@ node scripts/release-notes.mjs "$(node scripts/version-sync.mjs print)"
 
 Update `CHANGELOG.md` before every release. The section for `VERSION` is used as the GitHub Release body, so it must be written for users, not as a raw commit dump.
 
-Pushing release-relevant changes to `main` triggers the GitHub Actions release path. The workflow publishes the platform npm packages, publishes `@perw/hashjunkie`, tags `v{VERSION}`, uploads CLI archives to the GitHub Release, updates the GitHub Release notes from `CHANGELOG.md`, and updates `Tuxie/homebrew-tap` with the release version and archive SHA256s.
+Pushing release-relevant changes to `main` triggers the GitHub Actions release path. The workflow publishes the `hashjunkie` Rust library crate and `hashjunkie-cli` binary crate to crates.io, publishes the platform npm packages, publishes `@perw/hashjunkie`, tags `v{VERSION}`, uploads CLI archives to the GitHub Release, updates the GitHub Release notes from `CHANGELOG.md`, and updates `Tuxie/homebrew-tap` with the release version and archive SHA256s.
 
 Before pushing changes that add or edit GitHub Actions jobs, run the closest practical local `act` check first, for example `act -j <job-id>`. `act` will not prove cross-architecture builds, hosted macOS/Windows behavior, real uploads, publishing, release edits, or tap pushes, but it catches many workflow syntax, job wiring, shell, and missing-file mistakes before CI sees them.
 

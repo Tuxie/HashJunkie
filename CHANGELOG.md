@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.6.0 - 2026-05-01
+
+HashJunkie 0.6.0 makes the Rust implementation a first-class reusable crate
+and publishes both the Rust library and Cargo-installable CLI through crates.io.
+
 ### Added
 
 - Added CLI `--hex` to display the raw digest bytes as lowercase hex, even for
@@ -11,6 +16,10 @@
   representation.
 - Added first-class Rust library helpers: `hash_bytes()`, `hash_reader()`,
   `hash_file()`, default-algorithm variants, and the ordered `HashResult` type.
+- Added automated crates.io publishing for the `hashjunkie` Rust crate in the
+  release workflow.
+- Added crates.io packaging for `hashjunkie-cli`, which installs the CLI binary
+  as `hashjunkie` via `cargo install hashjunkie-cli`.
 
 ### Changed
 

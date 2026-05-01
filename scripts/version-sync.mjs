@@ -14,6 +14,13 @@ const cargoManifests = [
   "crates/hashjunkie-wasm/Cargo.toml",
 ];
 
+const cargoDependencyMirrors = [
+  {
+    path: "crates/hashjunkie-cli/Cargo.toml",
+    package: "hashjunkie",
+  },
+];
+
 const packageManifests = [
   "npm/hashjunkie/package.json",
   "npm/hashjunkie-linux-x64-gnu/package.json",
@@ -67,6 +74,22 @@ async function syncCargoVersion(root, path, version) {
   );
 }
 
+async function readCargoDependencyVersion(root, { path, package: packageName }) {
+  const contents = await readFile(pathOf(root, path), "utf8");
+  const re = new RegExp(`^${packageName}\\s*=\\s*\\{[^\\n]*version\\s*=\\s*"([^"]+)"`, "m");
+  const match = contents.match(re);
+  if (!match) {
+    throw new Error(`${path}: missing ${packageName} dependency version`);
+  }
+  return match[1];
+}
+
+async function syncCargoDependencyVersion(root, { path, package: packageName }, version) {
+  const contents = await readFile(pathOf(root, path), "utf8");
+  const re = new RegExp(`(^${packageName}\\s*=\\s*\\{[^\\n]*version\\s*=\\s*")([^"]+)(")`, "m");
+  await writeFile(pathOf(root, path), contents.replace(re, `$1${version}$3`));
+}
+
 async function readBunLockVersions(root) {
   const contents = await readFile(pathOf(root, lockfile), "utf8");
   const versions = [];
@@ -102,6 +125,12 @@ export async function checkVersions(root = defaultRepoRoot) {
       out.push(`${path}: ${actual} != ${version}`);
     }
   }
+  for (const mirror of cargoDependencyMirrors) {
+    const actual = await readCargoDependencyVersion(root, mirror);
+    if (actual !== version) {
+      out.push(`${mirror.path}: ${mirror.package} dependency ${actual} != ${version}`);
+    }
+  }
   for (const path of packageManifests) {
     const actual = await readPackageVersion(root, path);
     if (actual !== version) {
@@ -121,6 +150,9 @@ export async function syncVersions(root = defaultRepoRoot) {
   const version = await readVersion(root);
   for (const path of cargoManifests) {
     await syncCargoVersion(root, path, version);
+  }
+  for (const mirror of cargoDependencyMirrors) {
+    await syncCargoDependencyVersion(root, mirror, version);
   }
   for (const path of packageManifests) {
     await syncPackageVersion(root, path, version);

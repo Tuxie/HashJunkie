@@ -68,6 +68,7 @@ test("sync updates all mirrored version fields from VERSION", async () => {
       "utf8",
     );
     assert.match(cargoToml, /^version = "9\.8\.7"$/m);
+    assert.match(cargoToml, /^hashjunkie\s*=\s*\{[^\n]*version\s*=\s*"9\.8\.7"/m);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
