@@ -44,11 +44,11 @@ Coverage is measured and checked in CI. Per-crate requirements:
 | Crate / package | Gate |
 |---|---|
 | `hashjunkie` | **100%** — pure logic, fully unit-testable |
-| `hashjunkie-cli` | ≥ 90% — I/O entry points aren't worth complicating for coverage |
+| `hashjunkie-cli` | covered by workspace tests and integration tests |
 | `npm/hashjunkie` | **100%** (TypeScript) |
 
 Tools:
-- Rust: `cargo llvm-cov` with `--branch` flag
+- Rust: `cargo +nightly llvm-cov -p hashjunkie --branch --fail-under-lines 100`
 - TypeScript: `bun test --coverage`
 
 ### The Golden Rule on Tests
@@ -187,7 +187,7 @@ All of the following must pass before merge:
 - `cargo fmt --check`
 - `cargo clippy -- -D warnings`
 - `cargo test` (all crates)
-- `cargo llvm-cov --branch` at 100%
+- `cargo +nightly llvm-cov -p hashjunkie --branch --fail-under-lines 100`
 - `biome check` (TS)
 - `bun test --coverage` at 100%
 - CLI output matches rclone fixture files
@@ -198,8 +198,11 @@ Before `git push` (and especially before tagging a release), run the GitHub Acti
 
 ```sh
 act -l                              # list workflows and jobs
-act -W .github/workflows/ci.yml     # run the CI workflow
+act -j rust                         # Rust tests, clippy, and 100% coverage gate
+act -j version-consistency          # version/release script gates
 act push                            # simulate a push event across all workflows
 ```
 
-Only push once `act` reports every job green. If a workflow cannot be exercised under `act` (e.g. matrix runners that need macOS/Windows), note the gap explicitly and accept the risk.
+Choose the `act` job that matches the changed surface. `act -j version-consistency` is not sufficient for Rust code changes because it does not run the coverage gate. For Rust crate or CLI source changes, `act -j rust` is the required local workflow check. If `act -j rust` cannot run locally, run `cargo +nightly llvm-cov -p hashjunkie --branch --fail-under-lines 100` directly and note that `act` was not exercised.
+
+Only push once the applicable `act` jobs report green. If a workflow cannot be exercised under `act` (e.g. matrix runners that need macOS/Windows), note the gap explicitly and accept the risk.

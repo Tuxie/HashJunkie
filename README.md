@@ -300,6 +300,15 @@ Pushing release-relevant changes to `main` triggers the GitHub Actions release p
 
 Before pushing changes that add or edit GitHub Actions jobs, run the closest practical local `act` check first, for example `act -j <job-id>`. `act` will not prove cross-architecture builds, hosted macOS/Windows behavior, real uploads, publishing, release edits, or tap pushes, but it catches many workflow syntax, job wiring, shell, and missing-file mistakes before CI sees them.
 
+Choose the local `act` job that matches the changed surface. For Rust crate or
+CLI source changes, run `act -j rust`; this is the job that includes the 100%
+line coverage gate. If `act -j rust` cannot run locally, run the equivalent
+coverage command before pushing and note that `act` was not exercised:
+
+```sh
+cargo +nightly llvm-cov -p hashjunkie --branch --fail-under-lines 100
+```
+
 ### Commit style
 
 [Conventional Commits](https://www.conventionalcommits.org/) with plain English descriptions:

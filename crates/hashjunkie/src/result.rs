@@ -121,3 +121,80 @@ pub(crate) fn unique_algorithms(algorithms: &[Algorithm]) -> Vec<Algorithm> {
     }
     unique
 }
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use super::*;
+
+    fn sample_result() -> HashResult {
+        HashResult::from_digest_map(
+            &[Algorithm::Sha256, Algorithm::Md5, Algorithm::Sha256],
+            HashMap::from([
+                (
+                    Algorithm::Md5,
+                    DigestValue::from_hex("900150983cd24fb0d6963f7d28e17f72").unwrap(),
+                ),
+                (
+                    Algorithm::Sha256,
+                    DigestValue::from_hex(
+                        "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+                    )
+                    .unwrap(),
+                ),
+            ]),
+        )
+    }
+
+    #[test]
+    fn result_accessors_report_ordered_digests() {
+        let result = sample_result();
+
+        assert_eq!(result.len(), 2);
+        assert!(!result.is_empty());
+        assert_eq!(result.as_slice()[0].0, Algorithm::Sha256);
+        assert_eq!(
+            result.standard(Algorithm::Md5),
+            Some("900150983cd24fb0d6963f7d28e17f72")
+        );
+        assert_eq!(
+            result.hex(Algorithm::Sha256).as_deref(),
+            Some("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
+        );
+        assert!(result.get(Algorithm::Whirlpool).is_none());
+    }
+
+    #[test]
+    fn result_iterators_return_requested_order() {
+        let result = sample_result();
+
+        let borrowed = (&result)
+            .into_iter()
+            .map(|(algorithm, _)| algorithm)
+            .collect::<Vec<_>>();
+        assert_eq!(borrowed, vec![Algorithm::Sha256, Algorithm::Md5]);
+
+        let iterated = result
+            .iter()
+            .map(|(algorithm, _)| algorithm)
+            .collect::<Vec<_>>();
+        assert_eq!(iterated, vec![Algorithm::Sha256, Algorithm::Md5]);
+
+        let owned = result
+            .into_iter()
+            .map(|(algorithm, _)| algorithm)
+            .collect::<Vec<_>>();
+        assert_eq!(owned, vec![Algorithm::Sha256, Algorithm::Md5]);
+    }
+
+    #[test]
+    fn empty_result_is_empty() {
+        let result = HashResult::from_digest_map(&[], HashMap::new());
+
+        assert_eq!(result.len(), 0);
+        assert!(result.is_empty());
+        assert_eq!(result.as_slice(), &[]);
+        assert_eq!(result.into_vec(), Vec::new());
+    }
+}

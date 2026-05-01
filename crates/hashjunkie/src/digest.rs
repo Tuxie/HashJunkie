@@ -94,6 +94,7 @@ mod tests {
         assert_eq!(digest.standard(), "ba7816");
         assert_eq!(digest.raw(), &[0xba, 0x78, 0x16]);
         assert_eq!(digest.hex(), "ba7816");
+        assert_eq!(digest.into_raw(), vec![0xba, 0x78, 0x16]);
     }
 
     #[test]

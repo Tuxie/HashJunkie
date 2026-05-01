@@ -127,3 +127,96 @@ fn hash_reader_pipelined<R: Read>(
         hasher.finalize_digests()?,
     ))
 }
+
+#[cfg(test)]
+mod tests {
+    use std::error::Error;
+    use std::io::{self, Cursor, Read};
+
+    use super::*;
+
+    struct ErrorReader;
+
+    impl Read for ErrorReader {
+        fn read(&mut self, _buf: &mut [u8]) -> io::Result<usize> {
+            Err(io::Error::other("injected read error"))
+        }
+    }
+
+    #[test]
+    fn default_helpers_hash_with_default_algorithm_set() {
+        let bytes = hash_bytes_default(b"abc");
+        assert_eq!(bytes.len(), Algorithm::all().len());
+
+        let reader = hash_reader_default(Cursor::new(b"abc")).unwrap();
+        assert_eq!(reader.len(), Algorithm::all().len());
+
+        let file = hash_file_default("tests/fixtures/small.bin").unwrap();
+        assert_eq!(file.len(), Algorithm::all().len());
+    }
+
+    #[test]
+    fn single_algorithm_reader_uses_direct_path() {
+        let result = hash_reader(Cursor::new(b"abc"), &[Algorithm::Sha256]).unwrap();
+
+        assert_eq!(
+            result.standard(Algorithm::Sha256),
+            Some("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
+        );
+    }
+
+    #[test]
+    fn duplicate_algorithm_reader_uses_direct_path_once() {
+        let result =
+            hash_reader(Cursor::new(b"abc"), &[Algorithm::Sha256, Algorithm::Sha256]).unwrap();
+
+        assert_eq!(result.len(), 1);
+        assert_eq!(
+            result.standard(Algorithm::Sha256),
+            Some("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
+        );
+    }
+
+    #[test]
+    fn multi_algorithm_reader_uses_pipelined_path() {
+        let result =
+            hash_reader(Cursor::new(b"abc"), &[Algorithm::Sha256, Algorithm::Md5]).unwrap();
+
+        assert_eq!(result.len(), 2);
+        assert_eq!(
+            result.standard(Algorithm::Md5),
+            Some("900150983cd24fb0d6963f7d28e17f72")
+        );
+    }
+
+    #[test]
+    fn file_hashing_reports_io_errors() {
+        let err = hash_file(
+            "/definitely/not/a/hashjunkie/test/file",
+            &[Algorithm::Sha256],
+        )
+        .unwrap_err();
+
+        assert!(matches!(err, HashError::Io(_)));
+        assert!(err.source().is_some());
+        assert!(!err.to_string().is_empty());
+    }
+
+    #[test]
+    fn reader_hashing_reports_io_errors() {
+        let err = hash_reader(ErrorReader, &[Algorithm::Sha256]).unwrap_err();
+
+        assert!(matches!(err, HashError::Io(_)));
+        assert!(err.source().is_some());
+        assert_eq!(err.to_string(), "injected read error");
+    }
+
+    #[test]
+    fn pipeline_errors_report_sources() {
+        let err = HashError::from(PipelinedHashError::WorkerStopped);
+
+        assert!(matches!(err, HashError::Pipeline(_)));
+        assert_eq!(err.to_string(), "hash worker stopped unexpectedly");
+        assert!(err.source().is_some());
+    }
+}
