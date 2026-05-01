@@ -391,20 +391,6 @@ jobs:
             exit "$status"
           fi
 
-      - name: Wait for hashjunkie library on crates.io
-        if: needs.version.outputs.cli_crate_skip != 'true'
-        run: |
-          set -euo pipefail
-          for attempt in $(seq 1 30); do
-            if curl -fsS "https://crates.io/api/v1/crates/hashjunkie/${{ needs.version.outputs.new }}" >/dev/null; then
-              exit 0
-            fi
-            echo "hashjunkie ${{ needs.version.outputs.new }} is not visible through the crates.io API yet; waiting..."
-            sleep 10
-          done
-          echo "Timed out waiting for hashjunkie ${{ needs.version.outputs.new }} through the crates.io API." >&2
-          exit 1
-
       - name: Publish hashjunkie-cli to crates.io
         env:
           CRATES_IO_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
@@ -414,18 +400,28 @@ jobs:
             echo "hashjunkie-cli ${{ needs.version.outputs.new }} is already published on crates.io."
             exit 0
           fi
-          set +e
-          output=$(cargo publish -p hashjunkie-cli --token "$CRATES_IO_TOKEN" 2>&1)
-          status=$?
-          set -e
-          printf '%s\n' "$output"
-          if [ "$status" -ne 0 ]; then
+          for attempt in $(seq 1 30); do
+            set +e
+            output=$(cargo publish -p hashjunkie-cli --token "$CRATES_IO_TOKEN" 2>&1)
+            status=$?
+            set -e
+            printf '%s\n' "$output"
+            if [ "$status" -eq 0 ]; then
+              exit 0
+            fi
             if printf '%s\n' "$output" | grep -q 'already exists on crates.io index'; then
               echo "hashjunkie-cli ${{ needs.version.outputs.new }} was already published during a previous run."
               exit 0
             fi
+            if printf '%s\n' "$output" | grep -Eq 'no matching package named `hashjunkie` found|failed to select a version for the requirement `hashjunkie'; then
+              echo "hashjunkie ${{ needs.version.outputs.new }} is not visible to Cargo dependency resolution yet; waiting..."
+              sleep 10
+              continue
+            fi
             exit "$status"
-          fi
+          done
+          echo "Timed out waiting for hashjunkie ${{ needs.version.outputs.new }} to be usable by cargo publish." >&2
+          exit 1
 
   publish:
     name: Publish release artifacts
