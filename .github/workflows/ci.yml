@@ -378,7 +378,18 @@ jobs:
             echo "hashjunkie ${{ needs.version.outputs.new }} is already published on crates.io."
             exit 0
           fi
-          cargo publish -p hashjunkie --token "$CRATES_IO_TOKEN"
+          set +e
+          output=$(cargo publish -p hashjunkie --token "$CRATES_IO_TOKEN" 2>&1)
+          status=$?
+          set -e
+          printf '%s\n' "$output"
+          if [ "$status" -ne 0 ]; then
+            if printf '%s\n' "$output" | grep -q 'already exists on crates.io index'; then
+              echo "hashjunkie ${{ needs.version.outputs.new }} was already published during a previous run."
+              exit 0
+            fi
+            exit "$status"
+          fi
 
       - name: Wait for hashjunkie library on crates.io
         if: needs.version.outputs.cli_crate_skip != 'true'
@@ -403,7 +414,18 @@ jobs:
             echo "hashjunkie-cli ${{ needs.version.outputs.new }} is already published on crates.io."
             exit 0
           fi
-          cargo publish -p hashjunkie-cli --token "$CRATES_IO_TOKEN"
+          set +e
+          output=$(cargo publish -p hashjunkie-cli --token "$CRATES_IO_TOKEN" 2>&1)
+          status=$?
+          set -e
+          printf '%s\n' "$output"
+          if [ "$status" -ne 0 ]; then
+            if printf '%s\n' "$output" | grep -q 'already exists on crates.io index'; then
+              echo "hashjunkie-cli ${{ needs.version.outputs.new }} was already published during a previous run."
+              exit 0
+            fi
+            exit "$status"
+          fi
 
   publish:
     name: Publish release artifacts
